@@ -1,0 +1,35 @@
+# FastAPI 和 WebSocket
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+websockets==12.0
+
+# Pydantic
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# 音频处理
+numpy==1.26.3
+
+# 日志
+python-json-logger==2.0.7
+
+# 可选：实际部署时需要的库
+# ASR相关
+# openai-whisper==20231117  # Whisper ASR
+# funasr==1.0.0  # FunASR
+
+# TTS相关
+# edge-tts==6.1.9  # Edge TTS
+# pyttsx3==2.90  # 离线TTS
+
+# LLM相关
+# openai==1.7.2  # OpenAI API
+# anthropic==0.8.0  # Claude API
+
+# 向量数据库相关
+# qdrant-client==1.7.0  # Qdrant
+# pymilvus==2.3.4  # Milvus
+
+# 环境变量管理
+python-dotenv==1.0.0
+
