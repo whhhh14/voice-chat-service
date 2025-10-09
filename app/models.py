@@ -60,13 +60,6 @@ class HeartbeatMessage(BaseModel):
     timestamp: float = Field(..., description="时间戳")
 
 
-class ASRResult(BaseModel):
-    """ASR识别结果"""
-    text: str = Field(..., description="识别的文本")
-    confidence: float = Field(..., description="置信度")
-    language: Optional[str] = Field(default=None, description="语言")
-
-
 class IntentResult(BaseModel):
     """意图识别结果"""
     skill_id: str = Field(..., description="技能ID")

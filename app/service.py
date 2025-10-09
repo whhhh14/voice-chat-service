@@ -12,7 +12,7 @@ from app.modules.rag import RAG
 from app.modules.llm_generator import LLMGenerator
 from app.modules.tts import TTS
 from app.models import (
-    ASRResult, IntentResult, RAGResult, 
+    IntentResult, RAGResult, 
     LLMResponse, TTSResult, ResultMessage, SkillType
 )
 from app.config import settings
@@ -38,7 +38,7 @@ class VoiceChatService:
         )
         
         self.asr = ASR(
-            model=settings.asr_model,
+            model_path=settings.asr_model,
             language=settings.asr_language
         )
         
@@ -97,21 +97,18 @@ class VoiceChatService:
             
             # 2. ASR：语音识别
             logger.info("步骤2: ASR语音识别")
-            asr_result: Optional[ASRResult] = await self.asr.recognize_async(
-                speech_data,
-                settings.audio_sample_rate
-            )
+            asr_result = await self.asr.recognize_async(speech_data)
             
-            if not asr_result or not asr_result.text:
+            if not asr_result:
                 logger.warning("ASR识别失败")
                 return None
             
-            logger.info(f"识别文本: {asr_result.text}")
+            logger.info(f"识别文本: {asr_result}")
             
             # 3. LLM语义理解
             logger.info("步骤3: LLM语义理解")
             intent_result: IntentResult = await self.intent_understanding.understand_async(
-                asr_result.text,
+                asr_result,
                 context
             )
             
