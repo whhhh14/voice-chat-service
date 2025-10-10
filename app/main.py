@@ -1,7 +1,6 @@
 """
 FastAPI WebSocket 服务主程序
 """
-import logging
 import json
 import base64
 from typing import Dict, Any
@@ -19,12 +18,8 @@ import os
 import tempfile
 import wave
 
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 import loguru
+
 logger = loguru.logger
 logger.add("logs/app.log", rotation="10 MB", retention="7 days", enqueue=True, encoding="utf-8")
 
@@ -214,7 +209,7 @@ if __name__ == "__main__":
         "app.main:app",
         host=settings.host,
         port=settings.port,
-        reload=True,
-        log_level="info"
+        reload=False,
+        log_level="info",
+        workers=1
     )
-

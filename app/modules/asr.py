@@ -24,10 +24,16 @@ class ASR:
         self.model_path = model_path
         self.language = language
         logger.info(f"初始化ASR: model={model_path}, language={language}")
+        torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
         # 加载模型和处理器
         self.processor = WhisperProcessor.from_pretrained(model_path)
-        self.model = WhisperForConditionalGeneration.from_pretrained(model_path)
+        self.model = WhisperForConditionalGeneration.from_pretrained(
+            model_path,
+            dtype=torch_dtype,
+            use_safetensors=True,
+            attn_implementation="flash_attention_2"  # 内存优化的注意力机制
+        )
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = self.model.to(self.device)
@@ -57,11 +63,15 @@ class ASR:
                 raise ValueError("audio_data必须是bytes或numpy数组")
 
             # Whisper 要求输入为 16kHz、单通道、float32(-1~1)
+            # 为避免 dtype 错误，确保 input_features 的 dtype 与模型权重一致
             input_features = self.processor(
                 audio_np,
                 sampling_rate=16000,
                 return_tensors="pt"
             ).input_features
+
+            # 自动匹配 input_features 到模型预期 dtype
+            input_features = input_features.to(self.device, dtype=self.model.dtype)
 
             # 生成文本
             forced_decoder_ids = self.processor.get_decoder_prompt_ids(
@@ -70,7 +80,7 @@ class ASR:
 
             with torch.no_grad():
                 predicted_ids = self.model.generate(
-                    input_features.to(self.device),
+                    input_features,
                     forced_decoder_ids=forced_decoder_ids
                 )[0]
 
