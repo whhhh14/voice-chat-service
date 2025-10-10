@@ -6,6 +6,12 @@ import logging
 import numpy as np
 from typing import Optional
 from app.models import TTSResult
+import tempfile
+import os
+
+import torch
+from melo.api import TTS as MeloTTS
+
 
 logger = logging.getLogger(__name__)
 
@@ -15,31 +21,22 @@ class TTS:
     
     def __init__(
         self,
-        model: str = "default",
-        voice: str = "zh-CN",
-        speed: float = 1.0,
-        sample_rate: int = 16000
+        language: str = "EN_NEWEST",
     ):
         """
         初始化TTS
         
         Args:
-            model: TTS模型名称
-            voice: 语音类型
-            speed: 语速
-            sample_rate: 采样率
+            language: TTS语言
         """
-        self.model = model
-        self.voice = voice
-        self.speed = speed
-        self.sample_rate = sample_rate
+        self.language = language
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        self.model = MeloTTS(language=language, device=device)
+        self.sample_rate = 16000
         
-        logger.info(f"初始化TTS: model={model}, voice={voice}, speed={speed}")
-        
-        # 这里可以加载实际的TTS模型
-        # 示例：self.tts_engine = pyttsx3.init()
+        logger.info(f"初始化TTS: language={language}")
     
-    def synthesize(self, text: str) -> Optional[TTSResult]:
+    def synthesize(self, text: str, speed: float = 0.8) -> Optional[TTSResult]:
         """
         合成语音
         
@@ -51,31 +48,15 @@ class TTS:
         """
         try:
             logger.info(f"开始语音合成: {text[:50]}...")
-            
-            # TODO: 实际的TTS合成逻辑
-            # 这里使用模拟数据作为示例
-            # 实际应用中应该调用真实的TTS服务或模型
-            
-            # 示例：使用edge-tts
-            # import edge_tts
-            # communicate = edge_tts.Communicate(text, self.voice)
-            # await communicate.save("output.mp3")
-            
-            # 示例：使用其他TTS库
-            # self.tts_engine.setProperty('rate', 150 * self.speed)
-            # self.tts_engine.setProperty('voice', self.voice)
-            # self.tts_engine.save_to_file(text, 'output.wav')
-            # self.tts_engine.runAndWait()
-            
-            # 生成模拟的音频数据（1秒的正弦波）
-            duration = len(text) * 0.1  # 假设每个字符0.1秒
-            duration = max(1.0, min(duration, 10.0))  # 限制在1-10秒之间
-            
-            t = np.linspace(0, duration, int(self.sample_rate * duration))
-            frequency = 440  # A4音符
-            audio_float = 0.3 * np.sin(2 * np.pi * frequency * t)
-            audio_int16 = (audio_float * 32767).astype(np.int16)
-            audio_bytes = audio_int16.tobytes()
+            speaker_key = "EN-Newest"
+            speaker_id = 0
+
+            # 使用临时目录生成音频文件
+            with tempfile.TemporaryDirectory() as tmpdir:
+                src_path = os.path.join(tmpdir, "tts.wav")
+                self.model.tts_to_file(text, speaker_id, src_path, speed=speed)
+                with open(src_path, "rb") as f:
+                    audio_bytes = f.read()
             
             logger.info(f"合成完成: {len(audio_bytes)} 字节")
             
@@ -89,7 +70,7 @@ class TTS:
             logger.error(f"语音合成失败: {e}")
             return None
     
-    async def synthesize_async(self, text: str) -> Optional[TTSResult]:
+    async def synthesize_async(self, text: str, speed: float = 0.8) -> Optional[TTSResult]:
         """
         异步合成语音
         
@@ -99,6 +80,10 @@ class TTS:
         Returns:
             TTS合成结果
         """
-        # 实际应用中可以调用异步的TTS服务
-        return self.synthesize(text)
+        return self.synthesize(text, speed)
 
+
+if __name__ == "__main__":
+    # CUDA_VISIBLE_DEVICES=1 python -m app.modules.tts
+    tts = TTS(language="EN_NEWEST")
+    tts.synthesize("Hello, world!")

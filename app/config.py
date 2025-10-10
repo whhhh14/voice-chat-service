@@ -40,9 +40,7 @@ class Settings(BaseSettings):
     rag_similarity_threshold: float = 0.7
     
     # TTS配置
-    tts_model: str = "default"
-    tts_voice: str = "zh-CN"
-    tts_speed: float = 1.0
+    tts_language: str = "EN_NEWEST"
     
     class Config:
         env_file = ".env"

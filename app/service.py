@@ -60,10 +60,7 @@ class VoiceChatService:
         )
         
         self.tts = TTS(
-            model=settings.tts_model,
-            voice=settings.tts_voice,
-            speed=settings.tts_speed,
-            sample_rate=settings.audio_sample_rate
+            language=settings.tts_language
         )
         
         logger.info("语音聊天服务初始化完成")
