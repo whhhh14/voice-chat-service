@@ -290,10 +290,14 @@ ASR_MODEL=base            # ASR 模型
 ASR_LANGUAGE=zh           # 语言
 
 # LLM 配置
-LLM_API_KEY=your_key      # LLM API 密钥
-LLM_MODEL=gpt-3.5-turbo   # LLM 模型
-LLM_TEMPERATURE=0.7       # 温度参数
-LLM_MAX_TOKENS=500        # 最大 token 数
+LLM_API_KEY=EMPTY         # LLM API 密钥
+LLM_BASE_URL=http://192.168.111.3:8093/v1  # LLM 服务地址
+
+# 意图理解配置
+INTENT_SYSTEM_PROMPT_PATH=conf/system_prompt_intent.txt  # 意图理解提示词路径
+
+# 回复生成配置
+GENERATOR_SYSTEM_PROMPT_PATH=conf/system_prompt_generator.txt  # 回复生成提示词路径
 
 # RAG 配置
 RAG_TOP_K=3               # 返回文档数量

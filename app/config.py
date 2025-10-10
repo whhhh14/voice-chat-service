@@ -30,10 +30,14 @@ class Settings(BaseSettings):
     asr_language: str = "zh"
     
     # LLM配置
-    llm_api_key: Optional[str] = None
-    llm_model: str = "gpt-3.5-turbo"
-    llm_temperature: float = 0.7
-    llm_max_tokens: int = 500
+    llm_api_key: str = "EMPTY"
+    llm_base_url: str = "http://192.168.111.3:8093/v1"
+    
+    # 意图理解配置
+    intent_system_prompt_path: str = "conf/system_prompt_intent.txt"
+    
+    # 回复生成配置
+    generator_system_prompt_path: str = "conf/system_prompt_generator.txt"
     
     # RAG配置
     rag_top_k: int = 3

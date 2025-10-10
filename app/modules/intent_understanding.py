@@ -4,6 +4,9 @@ LLM语义理解模块
 """
 from typing import Optional, Dict, Any, List
 from app.models import IntentResult, SkillType
+from app.modules.llm import LLM
+import json
+import re
 
 import loguru
 
@@ -13,57 +16,27 @@ logger = loguru.logger
 class IntentUnderstanding:
     """意图理解器"""
     
-    def __init__(self, model: str = "gpt-3.5-turbo", api_key: Optional[str] = None):
+    def __init__(
+        self,
+        api_key: str = "EMPTY",
+        base_url: str = "http://192.168.111.3:8093/v1",
+        system_prompt_path: str = "conf/system_prompt_intent.txt"
+    ):
         """
         初始化意图理解器
         
         Args:
-            model: LLM模型名称
             api_key: API密钥
+            base_url: API基础URL
+            system_prompt_path: 系统提示词文件路径
         """
-        self.model = model
-        self.api_key = api_key
+        self.llm = LLM(
+            api_key=api_key,
+            base_url=base_url,
+            system_promt_path=system_prompt_path
+        )
         
-        # 固定指令库
-        self.fixed_commands: Dict[str, Dict[str, Any]] = {
-            "打开灯": {
-                "skill_id": "light_on",
-                "skill_type": SkillType.COMMAND,
-                "response": "好的，已为您打开灯"
-            },
-            "关闭灯": {
-                "skill_id": "light_off",
-                "skill_type": SkillType.COMMAND,
-                "response": "好的，已为您关闭灯"
-            },
-            "打开空调": {
-                "skill_id": "ac_on",
-                "skill_type": SkillType.COMMAND,
-                "response": "好的，已为您打开空调"
-            },
-            "关闭空调": {
-                "skill_id": "ac_off",
-                "skill_type": SkillType.COMMAND,
-                "response": "好的，已为您关闭空调"
-            },
-            "播放音乐": {
-                "skill_id": "music_play",
-                "skill_type": SkillType.COMMAND,
-                "response": "好的，正在为您播放音乐"
-            },
-            "停止播放": {
-                "skill_id": "music_stop",
-                "skill_type": SkillType.COMMAND,
-                "response": "好的，已停止播放"
-            },
-            "今天天气": {
-                "skill_id": "weather_query",
-                "skill_type": SkillType.COMMAND,
-                "response": "今天天气晴朗，温度适宜"
-            },
-        }
-        
-        logger.info(f"初始化意图理解器: model={model}")
+        logger.info(f"初始化意图理解器: base_url={base_url}")
     
     def understand(self, text: str, context: Optional[Dict[str, Any]] = None) -> IntentResult:
         """
@@ -79,34 +52,21 @@ class IntentUnderstanding:
         try:
             logger.info(f"开始意图理解: {text}")
             
-            # 1. 首先检查是否命中固定指令
-            for command, config in self.fixed_commands.items():
-                if command in text or self._is_similar(text, command):
-                    logger.info(f"命中固定指令: {command}")
-                    return IntentResult(
-                        skill_id=config["skill_id"],
-                        skill_type=config["skill_type"],
-                        confidence=0.95,
-                        entities={"response": config["response"]},
-                        is_fixed_command=True
-                    )
+            # 调用LLM进行意图识别
+            response = self.llm.generate(text)
             
-            # 2. 未命中固定指令，判断意图类型
-            # 这里可以调用LLM进行更复杂的意图识别
-            skill_id, skill_type = self._classify_intent(text, context)
+            # 解析LLM返回的JSON结果
+            intent_data = self._parse_intent_response(response)
             
-            logger.info(f"意图识别完成: skill_id={skill_id}, skill_type={skill_type}")
+            # 将场景类型转换为技能信息
+            result = self._convert_to_intent_result(intent_data)
             
-            return IntentResult(
-                skill_id=skill_id,
-                skill_type=skill_type,
-                confidence=0.85,
-                entities={},
-                is_fixed_command=False
-            )
+            logger.info(f"意图识别完成: skill_id={result.skill_id}, skill_type={result.skill_type}")
+            
+            return result
             
         except Exception as e:
-            logger.error(f"意图理解失败: {e}")
+            logger.error(f"意图理解失败: {e}", exc_info=True)
             # 返回默认的聊天意图
             return IntentResult(
                 skill_id="chat",
@@ -116,53 +76,142 @@ class IntentUnderstanding:
                 is_fixed_command=False
             )
     
-    def _is_similar(self, text1: str, text2: str, threshold: float = 0.8) -> bool:
+    def _parse_intent_response(self, response: str) -> Dict[str, Any]:
         """
-        判断两个文本是否相似
+        解析LLM返回的意图识别结果
         
         Args:
-            text1: 文本1
-            text2: 文本2
-            threshold: 相似度阈值
+            response: LLM返回的文本
             
         Returns:
-            是否相似
+            解析后的意图数据字典
         """
-        # 简单的包含判断
-        # 实际应用中可以使用更复杂的相似度算法
-        text1 = text1.lower().strip()
-        text2 = text2.lower().strip()
-        
-        if text2 in text1 or text1 in text2:
-            return True
-        
-        # 计算字符重叠率
-        common = set(text1) & set(text2)
-        similarity = len(common) / max(len(set(text1)), len(set(text2)))
-        
-        return similarity >= threshold
+        try:
+            # 尝试提取JSON内容（可能包含在代码块中）
+            json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
+            else:
+                # 尝试直接提取花括号内容
+                json_match = re.search(r'\{.*\}', response, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group(0)
+                else:
+                    json_str = response
+            
+            # 解析JSON
+            intent_data = json.loads(json_str)
+            logger.info(f"解析意图数据: {intent_data}")
+            return intent_data
+            
+        except Exception as e:
+            logger.error(f"解析意图响应失败: {e}, response={response}")
+            # 返回默认值
+            return {
+                "scene_type": 4,
+                "scene_name": "其他场景",
+                "confidence": 0.5
+            }
     
-    def _classify_intent(self, text: str, context: Optional[Dict[str, Any]] = None) -> tuple:
+    def _convert_to_intent_result(self, intent_data: Dict[str, Any]) -> IntentResult:
         """
-        分类意图类型
+        将LLM返回的场景数据转换为IntentResult
         
         Args:
-            text: 文本
-            context: 上下文
+            intent_data: 场景识别数据
             
         Returns:
-            (skill_id, skill_type)
+            IntentResult对象
         """
-        # 简单的关键词匹配
-        # 实际应用中应该使用LLM或意图分类模型
+        scene_type = intent_data.get("scene_type", 4)
+        confidence = intent_data.get("confidence", 0.5)
+        entities = {}
         
-        # 问答类关键词
-        qa_keywords = ["什么", "为什么", "怎么", "如何", "是什么", "在哪", "哪里", "谁"]
-        if any(keyword in text for keyword in qa_keywords):
-            return "qa", SkillType.QA
+        # 场景一：Solo指令识别
+        if scene_type == 1:
+            instruction_type = intent_data.get("instruction_type", "")
+            skill_id = self._map_instruction_to_skill(instruction_type)
+            entities = {
+                "instruction_type": instruction_type,
+                "scene_name": intent_data.get("scene_name", "")
+            }
+            return IntentResult(
+                skill_id=skill_id,
+                skill_type=SkillType.COMMAND,
+                confidence=confidence,
+                entities=entities,
+                is_fixed_command=True
+            )
         
-        # 默认为聊天
-        return "chat", SkillType.CHAT
+        # 场景二：宝宝哭告诉我
+        elif scene_type == 2:
+            entities = {
+                "detection_type": intent_data.get("detection_type", ""),
+                "scene_name": intent_data.get("scene_name", "")
+            }
+            return IntentResult(
+                skill_id="baby_cry_detection",
+                skill_type=SkillType.COMMAND,
+                confidence=confidence,
+                entities=entities,
+                is_fixed_command=True
+            )
+        
+        # 场景三：包裹问询
+        elif scene_type == 3:
+            inquiry_type = intent_data.get("inquiry_type", "")
+            entities = {
+                "inquiry_type": inquiry_type,
+                "scene_name": intent_data.get("scene_name", "")
+            }
+            return IntentResult(
+                skill_id=f"package_inquiry_{inquiry_type}",
+                skill_type=SkillType.QA,
+                confidence=confidence,
+                entities=entities,
+                is_fixed_command=False
+            )
+        
+        # 场景四：其他场景（聊天）
+        else:
+            return IntentResult(
+                skill_id="chat",
+                skill_type=SkillType.CHAT,
+                confidence=confidence,
+                entities={"scene_name": intent_data.get("scene_name", "其他场景")},
+                is_fixed_command=False
+            )
+    
+    def _map_instruction_to_skill(self, instruction_type: str) -> str:
+        """
+        将指令类型映射到技能ID
+        
+        Args:
+            instruction_type: 指令类型
+            
+        Returns:
+            技能ID
+        """
+        # 指令类型映射表
+        instruction_map = {
+            "关闭摄像机": "camera_off",
+            "开启摄像机": "camera_on",
+            "开启追踪": "tracking_on",
+            "关闭追踪": "tracking_off",
+            "打电话": "call",
+            "call mom": "call_mom",
+            "call husband": "call_husband",
+            "call wife": "call_wife",
+            "call dad": "call_dad",
+            "call son": "call_son",
+            "call daughter": "call_daughter",
+            "结束通话": "hang_up",
+            "拍照": "take_photo",
+            "开启录像": "start_recording",
+            "结束录像": "stop_recording"
+        }
+        
+        return instruction_map.get(instruction_type, "unknown_command")
     
     async def understand_async(self, text: str, context: Optional[Dict[str, Any]] = None) -> IntentResult:
         """

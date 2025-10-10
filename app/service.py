@@ -44,8 +44,9 @@ class VoiceChatService:
         )
         
         self.intent_understanding = IntentUnderstanding(
-            model=settings.llm_model,
-            api_key=settings.llm_api_key
+            api_key=settings.llm_api_key,
+            base_url=settings.llm_base_url,
+            system_prompt_path=settings.intent_system_prompt_path
         )
         
         self.rag = RAG(
@@ -54,10 +55,9 @@ class VoiceChatService:
         )
         
         self.llm_generator = LLMGenerator(
-            model=settings.llm_model,
             api_key=settings.llm_api_key,
-            temperature=settings.llm_temperature,
-            max_tokens=settings.llm_max_tokens
+            base_url=settings.llm_base_url,
+            system_prompt_path=settings.generator_system_prompt_path
         )
         
         self.tts = TTS(

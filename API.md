@@ -421,8 +421,14 @@ ASR_MODEL=base
 ASR_LANGUAGE=zh
 
 # LLM 配置
-LLM_API_KEY=your_api_key_here
-LLM_MODEL=gpt-3.5-turbo
+LLM_API_KEY=EMPTY
+LLM_BASE_URL=http://192.168.111.3:8093/v1
+
+# 意图理解配置
+INTENT_SYSTEM_PROMPT_PATH=conf/system_prompt_intent.txt
+
+# 回复生成配置
+GENERATOR_SYSTEM_PROMPT_PATH=conf/system_prompt_generator.txt
 
 # RAG 配置
 RAG_TOP_K=3
