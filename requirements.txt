@@ -33,4 +33,10 @@ python-json-logger==2.0.7
 # 环境变量管理
 python-dotenv==1.0.0
 
-pydantic-settings==2.11.0
+# Gradio 测试界面
+gradio==4.44.0
+librosa==0.10.1
+soundfile==0.12.1
+
+# pydantic-settings 已在上面列出
+# pydantic-settings==2.11.0

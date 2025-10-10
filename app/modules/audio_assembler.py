@@ -3,11 +3,12 @@
 负责接收流式音频数据并组装成完整音频
 """
 import base64
-import logging
 from typing import Optional, Dict, Any
 from io import BytesIO
 
-logger = logging.getLogger(__name__)
+import loguru
+
+logger = loguru.logger
 
 
 class AudioAssembler:

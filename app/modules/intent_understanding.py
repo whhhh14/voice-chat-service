@@ -2,11 +2,12 @@
 LLM语义理解模块
 负责理解用户意图，判断是否命中固定指令
 """
-import logging
 from typing import Optional, Dict, Any, List
 from app.models import IntentResult, SkillType
 
-logger = logging.getLogger(__name__)
+import loguru
+
+logger = loguru.logger
 
 
 class IntentUnderstanding:

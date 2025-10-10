@@ -2,11 +2,12 @@
 VAD (Voice Activity Detection) 语音活动检测模块
 负责从音频中检测并分离出说话片段
 """
-import logging
 import numpy as np
 from typing import Tuple, Optional
 
-logger = logging.getLogger(__name__)
+import loguru
+
+logger = loguru.logger
 
 
 class VAD:

@@ -2,7 +2,6 @@
 TTS (Text-to-Speech) 语音合成模块
 负责将文本转换为语音
 """
-import logging
 import numpy as np
 from typing import Optional
 from app.models import TTSResult
@@ -13,7 +12,9 @@ import torch
 from melo.api import TTS as MeloTTS
 
 
-logger = logging.getLogger(__name__)
+import loguru
+
+logger = loguru.logger
 
 
 class TTS:
@@ -52,11 +53,15 @@ class TTS:
             speaker_id = 0
 
             # 使用临时目录生成音频文件
-            with tempfile.TemporaryDirectory() as tmpdir:
-                src_path = os.path.join(tmpdir, "tts.wav")
-                self.model.tts_to_file(text, speaker_id, src_path, speed=speed)
-                with open(src_path, "rb") as f:
-                    audio_bytes = f.read()
+            tmp_dir = os.path.join(os.path.dirname(__file__), '../..', 'tmp')
+            os.makedirs(tmp_dir, exist_ok=True)
+            with tempfile.NamedTemporaryFile(prefix='tts_', suffix='.wav', dir=tmp_dir, delete=False) as src_file:
+                src_path = src_file.name
+            logger.info(f"完整音频文件路径: {src_path}")
+
+            self.model.tts_to_file(text, speaker_id, src_path, speed=speed)
+            with open(src_path, "rb") as f:
+                audio_bytes = f.read()
             
             logger.info(f"合成完成: {len(audio_bytes)} 字节")
             
@@ -84,6 +89,6 @@ class TTS:
 
 
 if __name__ == "__main__":
-    # CUDA_VISIBLE_DEVICES=1 python -m app.modules.tts
+    # CUDA_VISIBLE_DEVICES=5 python -m app.modules.tts
     tts = TTS(language="EN_NEWEST")
     tts.synthesize("Hello, world!")

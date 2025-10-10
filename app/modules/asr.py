@@ -2,11 +2,12 @@
 ASR (Automatic Speech Recognition) 语音识别模块
 负责将语音转换为文本
 """
-import logging
 import torch
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
 
-logger = logging.getLogger(__name__)
+import loguru
+
+logger = loguru.logger
 
 
 class ASR:
@@ -31,43 +32,55 @@ class ASR:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = self.model.to(self.device)
         
-    def recognize(self, audio_data: str):
+    def recognize(self, audio_data):
         """
         识别语音
-        
+
         Args:
-            audio_data: 音频数据
-            
+            audio_data: 可以是float32数组（如librosa.load输出），或原始PCM字节流
+
         Returns:
             ASR识别结果
         """
+        import numpy as np
+
         try:
             logger.info("开始语音识别")
 
+            # 如果audio_data是bytes，则将其转为numpy float32
+            if isinstance(audio_data, bytes):
+                # 假设输入是16-bit PCM little-endian, 单通道
+                audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
+            elif isinstance(audio_data, np.ndarray):
+                audio_np = audio_data.astype(np.float32)
+            else:
+                raise ValueError("audio_data必须是bytes或numpy数组")
+
+            # Whisper 要求输入为 16kHz、单通道、float32(-1~1)
             input_features = self.processor(
-                audio_data, 
-                sampling_rate=16000, 
+                audio_np,
+                sampling_rate=16000,
                 return_tensors="pt"
             ).input_features
-            
+
             # 生成文本
             forced_decoder_ids = self.processor.get_decoder_prompt_ids(
                 language=self.language, task="transcribe"
             )
-            
+
             with torch.no_grad():
                 predicted_ids = self.model.generate(
                     input_features.to(self.device),
                     forced_decoder_ids=forced_decoder_ids
-                )[0]  # 取第一个序列
-            
+                )[0]
+
             # 解码生成的文本
             transcription = self.processor.decode(predicted_ids, skip_special_tokens=True)
 
             # 使用Whisper处理器的标准化方法
             normalized_transcription = self.processor.tokenizer._normalize(transcription)
             return normalized_transcription
-            
+
         except Exception as e:
             logger.error(f"语音识别失败: {e}")
             return None
@@ -87,10 +100,10 @@ class ASR:
 
 
 if __name__ == "__main__":
-    # CUDA_VISIBLE_DEVICES=1 python -m app.modules.asr
+    # CUDA_VISIBLE_DEVICES=5 python -m app.modules.asr
 
     import librosa
     asr = ASR(model_path="/data/work/MaxZeng/work/models/whisper-large-v3", language="en")
-    audio_data, sr = librosa.load("tests/End_call_SV0264_6_13_F2917.wav", sr=16000)
+    audio_data, sr = librosa.load("tmp/tmprwzsjcuv.wav", sr=16000)
     result = asr.recognize(audio_data)
     print(f"result: {result}")

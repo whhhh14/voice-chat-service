@@ -2,11 +2,12 @@
 LLM回复生成模块
 负责基于上下文生成回复文本
 """
-import logging
 from typing import Optional, List, Dict, Any
 from app.models import LLMResponse
 
-logger = logging.getLogger(__name__)
+import loguru
+
+logger = loguru.logger
 
 
 class LLMGenerator:
@@ -145,10 +146,10 @@ class LLMGenerator:
         """
         # 如果有上下文，基于上下文生成回复
         if context and len(context) > 0:
-            return f"根据相关信息，{context[0]}您还有其他问题吗？"
+            return f"Based on the relevant information, {context[0]} Do you have any other questions?"
         
-        # 否则生成通用回复
-        return f"我理解您的问题是关于：{query}。这是一个很好的问题，让我为您解答。在实际应用中，这里会调用真实的LLM服务生成更准确的回复。"
+        # Otherwise, generate a generic response
+        return f"I understand that your question is about: {query}. That's a good question, let me answer it for you. In a real application, this would call the actual LLM service to generate a more accurate response."
     
     async def generate_async(
         self,

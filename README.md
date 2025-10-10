@@ -173,14 +173,49 @@ docker stop voice-chat-service
 启动后，可以通过以下方式访问服务：
 
 - **WebSocket 端点**: `ws://localhost:8000/ws`
-- **测试页面**: `http://localhost:8000`
+- **HTML 测试页面**: `http://localhost:8000`
+- **Gradio 测试平台**: `http://localhost:7860`（需单独启动）
 - **健康检查**: `http://localhost:8000/health`
+
+### 🎯 推荐：使用 Gradio 测试平台
+
+我们提供了功能强大的 Gradio 测试界面，支持真实音频录制和文件上传：
+
+```bash
+# 1. 启动后端服务（在一个终端）
+python -m app.main
+
+# 2. 启动 Gradio 测试平台（在另一个终端）
+python gradio_app.py
+
+# 3. 访问 Gradio 界面
+浏览器打开: http://localhost:7860
+```
+
+**Gradio 平台功能：**
+- 🎤 麦克风录音测试
+- 📁 音频文件上传（支持 WAV, MP3 等多种格式）
+- 🔄 自动格式转换（转为 16kHz 单声道）
+- 📊 详细结果展示（ASR、LLM、TTS）
+- 🎯 快速测试场景
+
+详细使用说明请查看：[README_GRADIO.md](./README_GRADIO.md)
 
 ### API 文档
 
 详细的 API 文档请查看 [API.md](./API.md)
 
 ### 快速测试
+
+#### 方式 1: Gradio 测试平台（推荐）
+
+1. 启动 Gradio：`python gradio_app.py`
+2. 打开浏览器访问 `http://localhost:7860`
+3. 点击麦克风图标录制音频或上传音频文件
+4. 点击"发送并处理"按钮
+5. 查看 ASR 识别、LLM 回复和 TTS 音频
+
+#### 方式 2: HTML 测试页面
 
 1. 打开浏览器访问 `http://localhost:8000`
 2. 点击"连接"按钮建立 WebSocket 连接
@@ -446,11 +481,14 @@ docker-compose logs -f  # Docker
 - `websockets`: WebSocket 支持
 - `pydantic`: 数据验证
 - `numpy`: 音频数据处理
+- `gradio`: 测试界面（可选）
+- `librosa`: 音频处理（用于 Gradio）
 
 可选依赖（生产环境建议安装）：
 
-- `openai-whisper`: Whisper ASR
-- `edge-tts`: Edge TTS
+- `transformers`: Whisper ASR 模型
+- `torch`: 深度学习框架
+- `melo`: MeloTTS 语音合成
 - `openai`: OpenAI API
 - `qdrant-client`: Qdrant 向量数据库
 

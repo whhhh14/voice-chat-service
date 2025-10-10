@@ -2,11 +2,12 @@
 RAG (Retrieval-Augmented Generation) 检索增强生成模块
 负责从知识库中检索相关信息
 """
-import logging
 from typing import Optional, List, Dict, Any
 from app.models import RAGResult
 
-logger = logging.getLogger(__name__)
+import loguru
+
+logger = loguru.logger
 
 
 class RAG:

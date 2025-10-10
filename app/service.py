@@ -2,7 +2,6 @@
 语音聊天服务核心逻辑
 整合各个模块，实现完整的语音对话流程
 """
-import logging
 from typing import Dict, Any, Optional
 from app.modules.audio_assembler import AudioAssembler
 from app.modules.vad import VAD
@@ -18,7 +17,9 @@ from app.models import (
 from app.config import settings
 import base64
 
-logger = logging.getLogger(__name__)
+import loguru
+
+logger = loguru.logger
 
 
 class VoiceChatService:
@@ -86,15 +87,15 @@ class VoiceChatService:
             
             # 1. VAD：检测语音活动
             logger.info("步骤1: VAD语音活动检测")
-            has_speech, speech_data = self.vad.detect_speech(audio_data)
+            # has_speech, speech_data = self.vad.detect_speech(audio_data)
             
-            if not has_speech or not speech_data:
-                logger.warning("未检测到语音活动")
-                return None
+            # if not has_speech or not speech_data:
+            #     logger.warning("未检测到语音活动")
+            #     return None
             
             # 2. ASR：语音识别
             logger.info("步骤2: ASR语音识别")
-            asr_result = await self.asr.recognize_async(speech_data)
+            asr_result = await self.asr.recognize_async(audio_data)
             
             if not asr_result:
                 logger.warning("ASR识别失败")
@@ -135,7 +136,7 @@ class VoiceChatService:
                 # 4.1 RAG检索
                 logger.info("步骤4.1: RAG检索")
                 rag_result: RAGResult = await self.rag.retrieve_async(
-                    asr_result.text,
+                    asr_result,
                     context
                 )
                 
@@ -144,7 +145,7 @@ class VoiceChatService:
                 # 4.2 LLM生成回复
                 logger.info("步骤4.2: LLM生成回复")
                 llm_response: LLMResponse = await self.llm_generator.generate_async(
-                    query=asr_result.text,
+                    query=asr_result,
                     context=rag_result.documents,
                     history=context.get("history") if context else None
                 )
@@ -168,7 +169,7 @@ class VoiceChatService:
                     text=llm_response.text,
                     audio=audio_base64,
                     metadata={
-                        "asr_text": asr_result.text,
+                        "asr_text": asr_result,
                         "confidence": intent_result.confidence,
                         "is_fixed_command": False,
                         "rag_documents": len(rag_result.documents),

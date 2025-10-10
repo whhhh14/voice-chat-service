@@ -15,13 +15,18 @@ from app.models import (
 from app.modules.audio_assembler import AudioAssembler
 from app.service import VoiceChatService
 import time
+import os
+import tempfile
+import wave
 
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger(__name__)
+import loguru
+logger = loguru.logger
+logger.add("logs/app.log", rotation="10 MB", retention="7 days", enqueue=True, encoding="utf-8")
 
 # 创建FastAPI应用
 app = FastAPI(
@@ -32,194 +37,6 @@ app = FastAPI(
 
 # 创建语音聊天服务实例
 voice_service = VoiceChatService()
-
-
-@app.get("/")
-async def get_index():
-    """返回测试页面"""
-    html_content = """
-    <!DOCTYPE html>
-    <html>
-        <head>
-            <title>语音聊天服务测试</title>
-            <meta charset="UTF-8">
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    max-width: 800px;
-                    margin: 50px auto;
-                    padding: 20px;
-                }
-                h1 {
-                    color: #333;
-                }
-                .status {
-                    padding: 10px;
-                    margin: 10px 0;
-                    border-radius: 5px;
-                }
-                .connected {
-                    background-color: #d4edda;
-                    color: #155724;
-                }
-                .disconnected {
-                    background-color: #f8d7da;
-                    color: #721c24;
-                }
-                .message {
-                    padding: 10px;
-                    margin: 5px 0;
-                    background-color: #e7f3ff;
-                    border-left: 4px solid #2196F3;
-                }
-                button {
-                    padding: 10px 20px;
-                    margin: 5px;
-                    font-size: 16px;
-                    cursor: pointer;
-                    background-color: #4CAF50;
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                }
-                button:hover {
-                    background-color: #45a049;
-                }
-                button:disabled {
-                    background-color: #cccccc;
-                    cursor: not-allowed;
-                }
-                #messages {
-                    max-height: 400px;
-                    overflow-y: auto;
-                    border: 1px solid #ddd;
-                    padding: 10px;
-                    margin: 10px 0;
-                }
-            </style>
-        </head>
-        <body>
-            <h1>语音聊天服务测试页面</h1>
-            <div id="status" class="status disconnected">未连接</div>
-            
-            <div>
-                <button id="connectBtn" onclick="connect()">连接</button>
-                <button id="disconnectBtn" onclick="disconnect()" disabled>断开</button>
-                <button id="sendTestBtn" onclick="sendTestAudio()" disabled>发送测试音频</button>
-            </div>
-            
-            <h3>消息日志</h3>
-            <div id="messages"></div>
-            
-            <script>
-                let ws = null;
-                
-                function updateStatus(connected) {
-                    const statusDiv = document.getElementById('status');
-                    const connectBtn = document.getElementById('connectBtn');
-                    const disconnectBtn = document.getElementById('disconnectBtn');
-                    const sendTestBtn = document.getElementById('sendTestBtn');
-                    
-                    if (connected) {
-                        statusDiv.textContent = '已连接';
-                        statusDiv.className = 'status connected';
-                        connectBtn.disabled = true;
-                        disconnectBtn.disabled = false;
-                        sendTestBtn.disabled = false;
-                    } else {
-                        statusDiv.textContent = '未连接';
-                        statusDiv.className = 'status disconnected';
-                        connectBtn.disabled = false;
-                        disconnectBtn.disabled = true;
-                        sendTestBtn.disabled = true;
-                    }
-                }
-                
-                function addMessage(message, type = 'info') {
-                    const messagesDiv = document.getElementById('messages');
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = 'message';
-                    messageDiv.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
-                    messagesDiv.appendChild(messageDiv);
-                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                }
-                
-                function connect() {
-                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                    const wsUrl = `${protocol}//${window.location.host}/ws`;
-                    
-                    addMessage(`正在连接到 ${wsUrl}...`);
-                    
-                    ws = new WebSocket(wsUrl);
-                    
-                    ws.onopen = function(event) {
-                        addMessage('WebSocket连接已建立');
-                        updateStatus(true);
-                    };
-                    
-                    ws.onmessage = function(event) {
-                        const data = JSON.parse(event.data);
-                        addMessage(`收到消息: ${JSON.stringify(data, null, 2)}`);
-                    };
-                    
-                    ws.onerror = function(event) {
-                        addMessage('WebSocket错误');
-                        console.error('WebSocket error:', event);
-                    };
-                    
-                    ws.onclose = function(event) {
-                        addMessage('WebSocket连接已关闭');
-                        updateStatus(false);
-                    };
-                }
-                
-                function disconnect() {
-                    if (ws) {
-                        ws.close();
-                        ws = null;
-                    }
-                }
-                
-                function sendTestAudio() {
-                    if (!ws) {
-                        addMessage('未连接到服务器');
-                        return;
-                    }
-                    
-                    // 创建测试音频数据（1秒的静音）
-                    const sampleRate = 16000;
-                    const duration = 1; // 秒
-                    const numSamples = sampleRate * duration;
-                    const buffer = new Int16Array(numSamples);
-                    
-                    // 生成简单的正弦波（用于测试）
-                    for (let i = 0; i < numSamples; i++) {
-                        buffer[i] = Math.sin(2 * Math.PI * 440 * i / sampleRate) * 10000;
-                    }
-                    
-                    // 转换为Base64
-                    const bytes = new Uint8Array(buffer.buffer);
-                    const base64 = btoa(String.fromCharCode.apply(null, bytes));
-                    
-                    // 发送音频消息
-                    const message = {
-                        type: 'audio',
-                        data: base64,
-                        context: {
-                            test: true,
-                            timestamp: Date.now()
-                        },
-                        is_end: true
-                    };
-                    
-                    ws.send(JSON.stringify(message));
-                    addMessage('已发送测试音频数据');
-                }
-            </script>
-        </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content)
 
 
 @app.get("/health")
@@ -331,6 +148,18 @@ async def handle_audio_message(
             # 获取完整音频
             complete_audio = audio_assembler.get_audio()
             context = audio_assembler.get_context()
+            
+            # 保存到项目tmp目录下，格式为wav
+            tmp_dir = os.path.join(os.path.dirname(__file__), '..', 'tmp')
+            os.makedirs(tmp_dir, exist_ok=True)
+            tmp_file = tempfile.NamedTemporaryFile(prefix='asr_', suffix='.wav', dir=tmp_dir, delete=False)
+            with wave.open(tmp_file.name, 'wb') as wf:
+                wf.setnchannels(audio_assembler.channels)
+                wf.setsampwidth(2)  # 16-bit PCM
+                wf.setframerate(audio_assembler.sample_rate)
+                wf.writeframes(complete_audio)
+            logger.info(f"完整音频已保存到 {tmp_file.name}")
+            
             
             # 处理音频
             result = await voice_service.process_audio(
