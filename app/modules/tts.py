@@ -7,6 +7,10 @@ from typing import Optional
 from app.models import TTSResult
 import tempfile
 import os
+import numpy as np
+import io
+import librosa
+import soundfile as sf
 
 import torch
 from melo.api import TTS as MeloTTS
@@ -48,7 +52,7 @@ class TTS:
             TTS合成结果
         """
         try:
-            logger.info(f"开始语音合成: {text[:50]}...")
+            logger.info(f"开始语音合成: {text}")
             speaker_key = "EN-Newest"
             speaker_id = 0
 
@@ -60,8 +64,23 @@ class TTS:
             logger.info(f"完整音频文件路径: {src_path}")
 
             self.model.tts_to_file(text, speaker_id, src_path, speed=speed)
+
+            # 读取合成的 WAV 文件
             with open(src_path, "rb") as f:
-                audio_bytes = f.read()
+                wav_bytes = f.read()
+            
+            # 使用 soundfile 和 librosa 加载 WAV (到 float32, 自动采样率)
+            audio_np, original_sr = sf.read(io.BytesIO(wav_bytes), dtype="float32")
+            if len(audio_np.shape) > 1:
+                audio_np = np.mean(audio_np, axis=1)  # 转单声道
+            
+            # 重采样到16K
+            if original_sr != 16000:
+                audio_np = librosa.resample(audio_np, orig_sr=original_sr, target_sr=16000)
+            
+            # 转为 16bit PCM
+            audio_int16 = (audio_np * 32767.0).astype(np.int16).tobytes()
+            audio_bytes = audio_int16
             
             logger.info(f"合成完成: {len(audio_bytes)} 字节")
             
