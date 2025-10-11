@@ -2,6 +2,7 @@
 语音聊天服务核心逻辑
 整合各个模块，实现完整的语音对话流程
 """
+import random
 from typing import Dict, Any, Optional
 from app.modules.audio_assembler import AudioAssembler
 from app.modules.vad import VAD
@@ -117,14 +118,27 @@ class VoiceChatService:
             if intent_result.is_fixed_command:
                 # 命中固定指令：直接返回
                 logger.info("步骤4: 命中固定指令，直接返回")
-                response_text = intent_result.entities.get("response", "好的")
+                if intent_result.skill_id == "baby_cry_detection":
+                    resonpse_list = ["Okay, I’ll let you know right away if the baby cries."]
+                else:
+                    skill_id = intent_result.skill_id
+                    if "call" in skill_id:
+                        resonpse_list = ["OK"]
+                    elif skill_id == "start_recording":
+                        resonpse_list = ["OK, recording now", "Recording..."]
+                    elif skill_id == "stop_recording":
+                        resonpse_list = ["Recording stopped"]
+                    else:
+                        resonpse_list = ["Alright", "OK", "Sure", "No problem", "Got it"]
+
+                response_text = intent_result.entities.get("response", random.choice(resonpse_list))
                 
                 return ResultMessage(
                     skill_id=intent_result.skill_id,
                     text=response_text,
                     audio=None,
                     metadata={
-                        "asr_text": asr_result.text,
+                        "asr_text": asr_result,
                         "confidence": intent_result.confidence,
                         "is_fixed_command": True
                     }
@@ -150,7 +164,7 @@ class VoiceChatService:
                     history=context.get("history") if context else None
                 )
                 
-                logger.info(f"生成回复: {llm_response.text[:50]}...")
+                logger.info(f"生成回复: {llm_response.text}")
                 
                 # 4.3 TTS合成
                 logger.info("步骤4.3: TTS语音合成")
