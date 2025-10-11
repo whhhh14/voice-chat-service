@@ -32,7 +32,7 @@ class ASR:
             model_path,
             dtype=torch_dtype,
             use_safetensors=True,
-            attn_implementation="flash_attention_2"  # 内存优化的注意力机制
+            attn_implementation="sdpa"  # 内存优化的注意力机制
         )
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
