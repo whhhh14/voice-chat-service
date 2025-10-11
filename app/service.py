@@ -131,12 +131,25 @@ class VoiceChatService:
                     else:
                         resonpse_list = ["Alright", "OK", "Sure", "No problem", "Got it"]
 
-                response_text = intent_result.entities.get("response", random.choice(resonpse_list))
+                response_text = random.choice(resonpse_list)
+
+
+                # TODO: TTS合成(临时处理，后续不生成语音，或者调用缓存音频)
+                logger.info("步骤4.1: TTS语音合成")
+                tts_result: Optional[TTSResult] = await self.tts.synthesize_async(
+                    response_text
+                )
+                
+                # 将音频编码为Base64
+                audio_base64 = None
+                if tts_result and tts_result.audio:
+                    audio_base64 = base64.b64encode(tts_result.audio).decode('utf-8')
+                    logger.info(f"TTS合成完成: {len(tts_result.audio)} 字节")
                 
                 return ResultMessage(
                     skill_id=intent_result.skill_id,
                     text=response_text,
-                    audio=None,
+                    audio=audio_base64,
                     metadata={
                         "asr_text": asr_result,
                         "confidence": intent_result.confidence,
@@ -160,6 +173,7 @@ class VoiceChatService:
                 logger.info("步骤4.2: LLM生成回复")
                 llm_response: LLMResponse = await self.llm_generator.generate_async(
                     query=asr_result,
+                    intent=intent_result,
                     context=rag_result.documents,
                     history=context.get("history") if context else None
                 )

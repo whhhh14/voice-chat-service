@@ -1,3 +1,4 @@
+import json
 from openai import OpenAI
 
 import loguru
@@ -20,6 +21,8 @@ class LLM:
             {"role": "system", "content": self.system_promt},
             {"role": "user", "content": user_msg}
         ]
+
+        logger.info(f"llm generate messages: {json.dumps(messages, ensure_ascii=False)}")
 
         api_params = {
             "model": "Qwen3-4B-Instruct-2507",

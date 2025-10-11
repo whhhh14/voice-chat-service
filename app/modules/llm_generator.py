@@ -5,6 +5,7 @@ LLM回复生成模块
 from typing import Optional, List, Dict, Any
 from app.models import LLMResponse
 from app.modules.llm import LLM
+from app.models import IntentResult
 
 import loguru
 
@@ -39,6 +40,7 @@ class LLMGenerator:
     def generate(
         self,
         query: str,
+        intent: Optional[IntentResult] = None,
         context: Optional[List[str]] = None,
         history: Optional[List[Dict[str, str]]] = None
     ) -> LLMResponse:
@@ -57,7 +59,7 @@ class LLMGenerator:
             logger.info(f"开始生成回复: query={query}")
             
             # 构建用户消息（包含上下文和历史）
-            user_message = self._build_user_message(query, context, history)
+            user_message = self._build_user_message(query, intent, context, history)
             
             # 调用LLM生成回复
             text = self.llm.generate(user_message)
@@ -79,6 +81,7 @@ class LLMGenerator:
     def _build_user_message(
         self,
         query: str,
+        intent: Optional[IntentResult] = None,
         context: Optional[List[str]] = None,
         history: Optional[List[Dict[str, str]]] = None
     ) -> str:
@@ -102,6 +105,11 @@ class LLMGenerator:
                 message_parts.append(f"{i}. {doc}")
             message_parts.append("")
         
+        # 添加场景信息
+        if intent:
+            scene_name = intent.entities.get("scene_name", "")
+            message_parts.append(f"【场景信息】: {scene_name}")
+        
         # 添加历史对话
         if history and len(history) > 0:
             message_parts.append("【历史对话】")
@@ -121,6 +129,7 @@ class LLMGenerator:
     async def generate_async(
         self,
         query: str,
+        intent: Optional[IntentResult] = None,
         context: Optional[List[str]] = None,
         history: Optional[List[Dict[str, str]]] = None
     ) -> LLMResponse:
@@ -136,5 +145,5 @@ class LLMGenerator:
             LLM回复结果
         """
         # 实际应用中可以调用异步的LLM API
-        return self.generate(query, context, history)
+        return self.generate(query, intent, context, history)
 
