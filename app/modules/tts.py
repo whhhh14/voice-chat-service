@@ -1,20 +1,10 @@
 """
-TTS (Text-to-Speech) 语音合成模块
+TTS (Text-to-Speech) 语音合成模块 - 简化版
 负责将文本转换为语音
 """
 import numpy as np
 from typing import Optional
 from app.models import TTSResult
-import tempfile
-import os
-import numpy as np
-import io
-import librosa
-import soundfile as sf
-
-import torch
-from melo.api import TTS as MeloTTS
-
 
 import loguru
 
@@ -22,67 +12,56 @@ logger = loguru.logger
 
 
 class TTS:
-    """语音合成器"""
+    """语音合成器 - 简化版（返回模拟音频）"""
     
     def __init__(
         self,
         language: str = "EN_NEWEST",
     ):
         """
-        初始化TTS
+        初始化TTS - 简化版
         
         Args:
             language: TTS语言
         """
         self.language = language
-        device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        self.model = MeloTTS(language=language, device=device)
         self.sample_rate = 16000
         
-        logger.info(f"初始化TTS: language={language}")
+        logger.info(f"初始化TTS（简化版）: language={language}")
+        logger.warning("当前使用简化版TTS，返回模拟音频。如需真实TTS，请配置TTS服务")
     
     def synthesize(self, text: str, speed: float = 0.8) -> Optional[TTSResult]:
         """
-        合成语音
+        合成语音 - 简化版（生成模拟音频）
         
         Args:
             text: 要合成的文本
+            speed: 语速（简化版中不使用）
             
         Returns:
-            TTS合成结果
+            TTS合成结果（模拟音频）
         """
         try:
-            logger.info(f"开始语音合成: {text}")
-            speaker_key = "EN-Newest"
-            speaker_id = 0
-
-            # 使用临时目录生成音频文件
-            tmp_dir = os.path.join(os.path.dirname(__file__), '../..', 'tmp')
-            os.makedirs(tmp_dir, exist_ok=True)
-            with tempfile.NamedTemporaryFile(prefix='tts_', suffix='.wav', dir=tmp_dir, delete=False) as src_file:
-                src_path = src_file.name
-            logger.info(f"完整音频文件路径: {src_path}")
-
-            self.model.tts_to_file(text, speaker_id, src_path, speed=speed)
-
-            # 读取合成的 WAV 文件
-            with open(src_path, "rb") as f:
-                wav_bytes = f.read()
+            logger.info(f"开始语音合成（简化版）: {text}")
             
-            # 使用 soundfile 和 librosa 加载 WAV (到 float32, 自动采样率)
-            audio_np, original_sr = sf.read(io.BytesIO(wav_bytes), dtype="float32")
-            if len(audio_np.shape) > 1:
-                audio_np = np.mean(audio_np, axis=1)  # 转单声道
+            # 生成简单的正弦波音频作为模拟（实际应用中可调用TTS API）
+            # 根据文本长度生成不同长度的音频
+            duration = min(len(text) * 0.1, 5.0)  # 文本越长音频越长，最多5秒
+            num_samples = int(self.sample_rate * duration)
             
-            # 重采样到16K
-            if original_sr != 16000:
-                audio_np = librosa.resample(audio_np, orig_sr=original_sr, target_sr=16000)
+            # 生成440Hz正弦波（A4音符）
+            t = np.linspace(0, duration, num_samples, False)
+            audio_data = np.sin(2 * np.pi * 440 * t)
             
-            # 转为 16bit PCM
-            audio_int16 = (audio_np * 32767.0).astype(np.int16).tobytes()
-            audio_bytes = audio_int16
+            # 添加包络，使声音更自然
+            envelope = np.exp(-t * 2)  # 指数衰减
+            audio_data = audio_data * envelope * 0.3  # 降低音量
             
-            logger.info(f"合成完成: {len(audio_bytes)} 字节")
+            # 转换为16-bit PCM
+            audio_int16 = (audio_data * 32767).astype(np.int16)
+            audio_bytes = audio_int16.tobytes()
+            
+            logger.info(f"合成完成（简化版）: {len(audio_bytes)} 字节, 时长 {duration:.2f}秒")
             
             return TTSResult(
                 audio=audio_bytes,
@@ -108,6 +87,8 @@ class TTS:
 
 
 if __name__ == "__main__":
-    # CUDA_VISIBLE_DEVICES=5 python -m app.modules.tts
+    # python -m app.modules.tts
     tts = TTS(language="EN_NEWEST")
-    tts.synthesize("Hello, world!")
+    result = tts.synthesize("Hello, world!")
+    if result:
+        print(f"生成音频: {len(result.audio)} 字节, 采样率: {result.sample_rate}Hz")

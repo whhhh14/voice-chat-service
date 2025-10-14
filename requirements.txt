@@ -12,6 +12,7 @@ numpy==1.26.3
 
 # 日志
 python-json-logger==2.0.7
+loguru==0.7.2
 
 # 可选：实际部署时需要的库
 # ASR相关
@@ -23,12 +24,14 @@ python-json-logger==2.0.7
 # pyttsx3==2.90  # 离线TTS
 
 # LLM相关
-# openai==1.7.2  # OpenAI API
+openai==1.7.2  # OpenAI API
 # anthropic==0.8.0  # Claude API
 
 # 向量数据库相关
-# qdrant-client==1.7.0  # Qdrant
-# pymilvus==2.3.4  # Milvus
+qdrant-client==1.7.0  # Qdrant
+sentence-transformers==2.2.2  # 文本向量化
+torch==2.1.0  # PyTorch
+transformers==4.35.0  # Transformers
 
 # 环境变量管理
 python-dotenv==1.0.0

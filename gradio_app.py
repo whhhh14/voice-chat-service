@@ -661,7 +661,7 @@ def main():
 
     demo.launch(
         server_name="0.0.0.0",
-        server_port=8192,
+        server_port=8199,
         share=False,
         show_error=True,
         ssl_certfile="cert.pem",

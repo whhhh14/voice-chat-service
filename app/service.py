@@ -51,8 +51,16 @@ class VoiceChatService:
         )
         
         self.rag = RAG(
+            host=settings.qdrant_host,
+            port=settings.qdrant_port,
+            collection_name=settings.qdrant_collection_name,
+            embedding_model_name=settings.rag_embedding_model,
+            embedding_api_base_url=settings.embedding_api_base_url,
+            embedding_api_key=settings.embedding_api_key,
+            embedding_dim=settings.embedding_dim,
             top_k=settings.rag_top_k,
-            similarity_threshold=settings.rag_similarity_threshold
+            similarity_threshold=settings.rag_similarity_threshold,
+            use_memory=settings.qdrant_use_memory
         )
         
         self.llm_generator = LLMGenerator(

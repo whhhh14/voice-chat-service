@@ -41,7 +41,20 @@ class Settings(BaseSettings):
     
     # RAG配置
     rag_top_k: int = 3
-    rag_similarity_threshold: float = 0.7
+    rag_similarity_threshold: float = 0.1  # 降低阈值以匹配 Qwen3-Embedding 的特性
+    rag_embedding_model: str = "Qwen3-Embedding-0.6B"
+    
+    # Embedding配置
+    # 通过HTTP API调用远程Embedding服务
+    embedding_api_base_url: str = "http://localhost:8002/v1"  # Qwen3-Embedding-0.6B
+    embedding_api_key: str = "EMPTY"
+    embedding_dim: int = 1024  # Qwen3-Embedding-0.6B 向量维度
+    
+    # Qdrant配置
+    qdrant_host: str = "localhost"
+    qdrant_port: int = 6333
+    qdrant_collection_name: str = "events"
+    qdrant_use_memory: bool = True  # True使用内存模式，False使用持久化模式
     
     # TTS配置
     tts_language: str = "EN_NEWEST"

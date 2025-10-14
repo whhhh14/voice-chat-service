@@ -3,13 +3,14 @@ FastAPI WebSocket 服务主程序
 """
 import json
 import base64
-from typing import Dict, Any
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from typing import Dict, Any, List
+from pathlib import Path
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse
 from app.config import settings
 from app.models import (
     AudioMessage, MessageType, ResultMessage, 
-    ErrorMessage, HeartbeatMessage
+    ErrorMessage, HeartbeatMessage, Event, EventSearchQuery
 )
 from app.modules.audio_assembler import AudioAssembler
 from app.service import VoiceChatService
@@ -34,6 +35,83 @@ app = FastAPI(
 voice_service = VoiceChatService()
 
 
+def _load_events_from_json(json_file: str = "data/test_events.json") -> List[Event]:
+    """
+    从JSON文件加载测试事件数据
+    
+    Args:
+        json_file: JSON文件路径（相对于项目根目录）
+        
+    Returns:
+        事件列表
+    """
+    try:
+        # 获取项目根目录
+        project_root = Path(__file__).parent.parent
+        json_path = project_root / json_file
+        
+        if not json_path.exists():
+            logger.warning(f"测试数据文件不存在: {json_path}")
+            return []
+        
+        # 读取JSON文件
+        with open(json_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        # 转换为Event对象
+        events = []
+        for event_data in data.get('events', []):
+            events.append(Event(**event_data))
+        
+        logger.info(f"从 {json_file} 加载了 {len(events)} 个事件")
+        return events
+        
+    except Exception as e:
+        logger.error(f"加载测试数据失败: {e}")
+        return []
+
+
+@app.on_event("startup")
+async def startup_event():
+    """应用启动时的初始化"""
+    logger.info("=" * 60)
+    logger.info("检查向量数据库状态...")
+    
+    try:
+        # 检查数据库是否为空
+        collection_info = voice_service.rag.get_collection_info()
+        count = collection_info.get("points_count", 0)
+        
+        if count == 0:
+            logger.info("数据库为空，从JSON文件加载测试数据...")
+            
+            # 从JSON文件加载事件
+            events = _load_events_from_json()
+            
+            if events:
+                # 导入到向量数据库
+                success_count = voice_service.rag.add_events_batch(events)
+                logger.info(f"✓ 已自动导入 {len(success_count)} 个测试事件")
+                
+                # 统计事件类型
+                event_types = {}
+                for event in events:
+                    event_name = event.event_name
+                    event_types[event_name] = event_types.get(event_name, 0) + 1
+                
+                for event_name, count in event_types.items():
+                    logger.info(f"  - {event_name}: {count}个")
+            else:
+                logger.warning("未能加载测试数据，请检查 data/test_events.json 文件")
+        else:
+            logger.info(f"数据库已有 {count} 个事件，跳过自动导入")
+    except Exception as e:
+        logger.warning(f"初始化测试数据失败: {e}")
+        logger.info("服务将继续运行，但RAG功能可能不可用")
+    
+    logger.info("=" * 60)
+
+
 @app.get("/health")
 async def health_check():
     """健康检查接口"""
@@ -42,6 +120,108 @@ async def health_check():
         "service": settings.app_name,
         "version": settings.app_version
     }
+
+
+@app.post("/api/events")
+async def create_event(event: Event):
+    """
+    创建单个事件
+    
+    Args:
+        event: 事件对象
+        
+    Returns:
+        事件ID
+    """
+    try:
+        event_id = voice_service.rag.add_event(event)
+        return {
+            "success": True,
+            "event_id": event_id,
+            "message": "事件创建成功"
+        }
+    except Exception as e:
+        logger.error(f"创建事件失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/events/batch")
+async def create_events_batch(events: list[Event]):
+    """
+    批量创建事件
+    
+    Args:
+        events: 事件列表
+        
+    Returns:
+        事件ID列表
+    """
+    try:
+        event_ids = voice_service.rag.add_events_batch(events)
+        return {
+            "success": True,
+            "event_ids": event_ids,
+            "count": len(event_ids),
+            "message": f"成功创建 {len(event_ids)} 个事件"
+        }
+    except Exception as e:
+        logger.error(f"批量创建事件失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/events/search")
+async def search_events(query: EventSearchQuery):
+    """
+    搜索事件
+    
+    Args:
+        query: 搜索查询
+        
+    Returns:
+        搜索结果
+    """
+    try:
+        result = voice_service.rag.retrieve(
+            query=query.query,
+            context=None,
+            filters=query.filters,
+            top_k=query.top_k
+        )
+        return {
+            "success": True,
+            "query": query.query,
+            "results": [
+                {
+                    "document": doc,
+                    "score": score,
+                    "metadata": metadata
+                }
+                for doc, score, metadata in zip(result.documents, result.scores, result.metadata)
+            ],
+            "count": len(result.documents)
+        }
+    except Exception as e:
+        logger.error(f"搜索事件失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/events/collection/info")
+async def get_collection_info():
+    """
+    获取事件集合信息
+    
+    Returns:
+        集合信息
+    """
+    try:
+        info = voice_service.rag.get_collection_info()
+        return {
+            "success": True,
+            "info": info
+        }
+    except Exception as e:
+        logger.error(f"获取集合信息失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.websocket("/ws")
