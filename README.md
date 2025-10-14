@@ -309,8 +309,8 @@ GENERATOR_SYSTEM_PROMPT_PATH=conf/system_prompt_generator.txt  # 回复生成提
 
 # RAG 配置
 RAG_TOP_K=3               # 返回文档数量
-RAG_SIMILARITY_THRESHOLD=0.7  # 相似度阈值
-RAG_EMBEDDING_MODEL=paraphrase-multilingual-MiniLM-L12-v2  # Embedding模型
+RAG_SIMILARITY_THRESHOLD=0.2  # 相似度阈值
+RAG_EMBEDDING_MODEL=Qwen3-Embedding-0.6B# Embedding模型
 
 # Qdrant 配置
 QDRANT_HOST=localhost     # Qdrant服务地址

@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     
     # RAG配置
     rag_top_k: int = 3
-    rag_similarity_threshold: float = 0.1  # 降低阈值以匹配 Qwen3-Embedding 的特性
+    rag_similarity_threshold: float = 0.2  # 降低阈值以匹配 Qwen3-Embedding 的特性
     rag_embedding_model: str = "Qwen3-Embedding-0.6B"
     
     # Embedding配置
@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     
     # Qdrant配置
     qdrant_host: str = "localhost"
-    qdrant_port: int = 6333
+    # qdrant_port: int = 6333
     qdrant_collection_name: str = "events"
     qdrant_use_memory: bool = True  # True使用内存模式，False使用持久化模式
     
