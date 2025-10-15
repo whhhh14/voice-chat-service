@@ -523,6 +523,7 @@ def create_interface():
                 audio_output = gr.Audio(
                     label="🔊 TTS 合成音频",
                     type="filepath",
+                    autoplay=True
                 )
 
         # 使用示例
