@@ -30,12 +30,12 @@ class ASR:
         self.processor = WhisperProcessor.from_pretrained(model_path)
         self.model = WhisperForConditionalGeneration.from_pretrained(
             model_path,
-            dtype=torch_dtype,
-            use_safetensors=True,
-            attn_implementation="sdpa"  # 内存优化的注意力机制
+            torch_dtype=torch_dtype,
+            use_safetensors=True
+            # attn_implementation="sdpa"  # SDPA需要torch>=2.1.1
         )
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
         self.model = self.model.to(self.device)
         
     def recognize(self, audio_data):

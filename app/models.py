@@ -88,3 +88,38 @@ class TTSResult(BaseModel):
     format: str = Field(default="pcm", description="音频格式")
     sample_rate: int = Field(..., description="采样率")
 
+
+class EventType(int, Enum):
+    """事件类型枚举"""
+    DEFINED = 1  # 已定义事件
+    UNDEFINED = 2  # 未定义事件
+
+
+class Event(BaseModel):
+    """事件模型"""
+    event_time: str = Field(..., description="事件发生时间，格式：YYYY-MM-DD HH:MM:SS")
+    event_type_id: int = Field(..., description="事件类型ID: 1-已定义事件, 2-未定义事件")
+    event_name: str = Field(..., description="事件名称")
+    event_desc: Optional[str] = Field(None, description="事件描述（由VL模型生成）")
+    device_id: int = Field(..., description="记录事件的设备ID")
+    device_name: str = Field(..., description="记录事件的设备位置")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "event_time": "2025-10-13 10:10:01",
+                "event_type_id": 1,
+                "event_name": "快递送达",
+                "event_desc": "一个穿红衣服的男子送达了快递",
+                "device_id": 1,
+                "device_name": "门口"
+            }
+        }
+
+
+class EventSearchQuery(BaseModel):
+    """事件搜索查询"""
+    query: str = Field(..., description="搜索查询文本")
+    top_k: int = Field(default=5, description="返回结果数量")
+    filters: Optional[Dict[str, Any]] = Field(None, description="过滤条件")
+

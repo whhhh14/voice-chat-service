@@ -15,9 +15,9 @@ AUDIO_SAMPLE_RATE=16000
 AUDIO_CHANNELS=1
 AUDIO_SAMPLE_WIDTH=2
 
-# ASR配置
-ASR_MODEL=base
-ASR_LANGUAGE=zh
+# ASR配置（Whisper）
+ASR_MODEL=/data/work/public/models/whisper-large-v3  # Whisper 模型路径
+ASR_LANGUAGE=en  # 识别语言（英语）
 
 # LLM配置
 LLM_API_KEY=EMPTY
@@ -31,7 +31,20 @@ GENERATOR_SYSTEM_PROMPT_PATH=conf/system_prompt_generator.txt
 
 # RAG配置
 RAG_TOP_K=3
-RAG_SIMILARITY_THRESHOLD=0.7
+RAG_SIMILARITY_THRESHOLD=0.2  # 相似度阈值（0.3-0.5 之间较合适）
+RAG_EMBEDDING_MODEL=Qwen3-Embedding-0.6B
+
+# Embedding配置
+# 通过 HTTP API 调用远程 Embedding 服务
+EMBEDDING_API_BASE_URL=http://localhost:8002/v1
+EMBEDDING_API_KEY=EMPTY
+EMBEDDING_DIM=1024
+
+# Qdrant配置
+QDRANT_HOST=localhost
+#QDRANT_PORT=6333
+QDRANT_COLLECTION_NAME=events
+QDRANT_USE_MEMORY=True
 
 # TTS配置
 TTS_LANGUAGE=EN_NEWEST

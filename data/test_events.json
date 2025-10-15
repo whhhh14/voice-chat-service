@@ -1,0 +1,47 @@
+{
+  "version": "1.0",
+  "description": "测试事件数据 - 用于RAG检索演示",
+  "events": [
+    {
+      "event_time": "2025-10-14 09:30:15",
+      "event_type_id": 1,
+      "event_name": "Package Delivery",
+      "event_desc": "Amazon delivery driver left a package at the front door",
+      "device_id": 1,
+      "device_name": "Front Door"
+    },
+    {
+      "event_time": "2025-10-14 14:20:30",
+      "event_type_id": 2,
+      "event_name": "Package Pickup",
+      "event_desc": "Sarah picked up the package from the door",
+      "device_id": 1,
+      "device_name": "Front Door"
+    },
+    {
+      "event_time": "2025-10-13 09:15:30",
+      "event_type_id": 1,
+      "event_name": "Package Delivery",
+      "event_desc": "A courier in blue uniform delivered a package and left it at the door",
+      "device_id": 1,
+      "device_name": "Front Door"
+    },
+    {
+      "event_time": "2025-10-14 08:45:30",
+      "event_type_id": 4,
+      "event_name": "Baby Crying",
+      "event_desc": "Baby crying detected, lasted for 2 minutes",
+      "device_id": 2,
+      "device_name": "Nursery"
+    },
+    {
+      "event_time": "2025-10-14 10:15:20",
+      "event_type_id": 3,
+      "event_name": "Visitor",
+      "event_desc": "A delivery person rang the doorbell",
+      "device_id": 1,
+      "device_name": "Front Door"
+    }
+  ]
+}
+

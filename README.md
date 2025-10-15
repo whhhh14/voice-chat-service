@@ -16,6 +16,9 @@
   - 语音合成 (TTS)
 - ✅ **固定指令支持**: 快速响应预定义指令
 - ✅ **知识库检索**: 基于 RAG 的智能问答
+- ✅ **向量数据库**: 集成 Qdrant 向量数据库，支持事件存储和检索
+- ✅ **语义搜索**: 基于 Sentence Transformers 的语义相似度检索
+- ✅ **事件管理**: 完整的事件增删改查 API
 - ✅ **Docker 支持**: 便捷的容器化部署
 
 ## 项目结构
@@ -35,9 +38,14 @@ aibase-voice-chat/
 │       ├── asr.py               # 语音识别
 │       ├── intent_understanding.py  # 意图理解
 │       ├── rag.py               # RAG 检索
+│       ├── embedding.py         # 文本向量化
 │       ├── llm_generator.py     # LLM 生成
 │       └── tts.py               # 语音合成
+├── scripts/                     # 脚本目录
+│   ├── import_events.py         # 事件导入脚本
+│   └── test_rag.py              # RAG 测试脚本
 ├── requirements.txt             # Python 依赖
+├── RAG_IMPLEMENTATION.md        # RAG 实现文档
 ├── Dockerfile                   # Docker 镜像构建文件
 ├── docker-compose.yml           # Docker Compose 配置
 ├── env_example                  # 环境变量示例
@@ -301,11 +309,82 @@ GENERATOR_SYSTEM_PROMPT_PATH=conf/system_prompt_generator.txt  # 回复生成提
 
 # RAG 配置
 RAG_TOP_K=3               # 返回文档数量
-RAG_SIMILARITY_THRESHOLD=0.7  # 相似度阈值
+RAG_SIMILARITY_THRESHOLD=0.2  # 相似度阈值
+RAG_EMBEDDING_MODEL=Qwen3-Embedding-0.6B# Embedding模型
+
+# Qdrant 配置
+QDRANT_HOST=localhost     # Qdrant服务地址
+QDRANT_PORT=6333         # Qdrant服务端口
+QDRANT_COLLECTION_NAME=events  # 集合名称
+QDRANT_USE_MEMORY=True   # 是否使用内存模式
 
 # TTS 配置
 TTS_VOICE=zh-CN           # TTS 语音
 TTS_SPEED=1.0             # 语速
+```
+
+## RAG 事件管理系统
+
+本项目实现了完整的 RAG (Retrieval-Augmented Generation) 事件管理系统。详细文档请参考 [RAG_IMPLEMENTATION.md](./RAG_IMPLEMENTATION.md)
+
+### 快速开始
+
+1. **导入示例事件数据**
+
+```bash
+python scripts/import_events.py
+```
+
+2. **测试 RAG 功能**
+
+```bash
+python scripts/test_rag.py
+```
+
+3. **使用 API 创建事件**
+
+```bash
+curl -X POST "http://localhost:8000/api/events" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event_time": "2025-10-13 10:10:01",
+    "event_type_id": 1,
+    "event_name": "快递送达",
+    "event_desc": "一个穿红衣服的男子送达了快递",
+    "device_id": 1,
+    "device_name": "门口"
+  }'
+```
+
+4. **搜索事件**
+
+```bash
+curl -X POST "http://localhost:8000/api/events/search" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "今天门口有快递吗？",
+    "top_k": 5
+  }'
+```
+
+### 事件 API 端点
+
+- `POST /api/events` - 创建单个事件
+- `POST /api/events/batch` - 批量创建事件
+- `POST /api/events/search` - 搜索事件
+- `GET /api/events/collection/info` - 获取集合信息
+
+### 事件数据结构
+
+```json
+{
+  "event_time": "2025-10-13 10:10:01",
+  "event_type_id": 1,
+  "event_name": "快递送达",
+  "event_desc": "一个穿红衣服的男子送达了快递",
+  "device_id": 1,
+  "device_name": "门口"
+}
 ```
 
 ## 固定指令
