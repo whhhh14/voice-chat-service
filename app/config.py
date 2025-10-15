@@ -52,9 +52,9 @@ class Settings(BaseSettings):
     
     # Qdrant配置
     qdrant_host: str = "localhost"
-    # qdrant_port: int = 6333
+    qdrant_port: int = 6333
     qdrant_collection_name: str = "events"
-    qdrant_use_memory: bool = True  # True使用内存模式，False使用持久化模式
+    qdrant_use_memory: bool = False  # True使用内存模式，False使用持久化模式（Docker部署）
     
     # TTS配置
     tts_language: str = "EN_NEWEST"

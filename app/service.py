@@ -60,7 +60,9 @@ class VoiceChatService:
             embedding_dim=settings.embedding_dim,
             top_k=settings.rag_top_k,
             similarity_threshold=settings.rag_similarity_threshold,
-            use_memory=settings.qdrant_use_memory
+            use_memory=settings.qdrant_use_memory,
+            llm_api_key=settings.llm_api_key,
+            llm_base_url=settings.llm_base_url
         )
         
         self.llm_generator = LLMGenerator(
@@ -171,8 +173,8 @@ class VoiceChatService:
                 # 4.1 RAG检索
                 logger.info("步骤4.1: RAG检索")
                 rag_result: RAGResult = await self.rag.retrieve_async(
-                    asr_result,
-                    context
+                    query=asr_result,
+                    context=context
                 )
                 
                 logger.info(f"检索到 {len(rag_result.documents)} 个相关文档")

@@ -24,7 +24,7 @@ loguru==0.7.2
 # pyttsx3==2.90  # 离线TTS
 
 # LLM相关
-openai==1.7.2  # OpenAI API
+openai==1.7.2  # OpenAI API (包含 Embedding API，支持同步和异步)
 # anthropic==0.8.0  # Claude API
 
 # 向量数据库相关
@@ -40,6 +40,8 @@ python-dotenv==1.0.0
 gradio==4.44.0
 librosa==0.10.1
 soundfile==0.12.1
+pandas==2.0.3
+requests==2.31.0
 
 # pydantic-settings 已在上面列出
 # pydantic-settings==2.11.0
