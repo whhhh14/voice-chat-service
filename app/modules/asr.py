@@ -35,7 +35,7 @@ class ASR:
             # attn_implementation="sdpa"  # SDPA需要torch>=2.1.1
         )
 
-        self.device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = self.model.to(self.device)
         
     def recognize(self, audio_data):

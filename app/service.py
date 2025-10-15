@@ -70,7 +70,9 @@ class VoiceChatService:
         )
         
         self.tts = TTS(
-            language=settings.tts_language
+            language=settings.tts_language,
+            model_path=settings.tts_model_path,
+            voice_name=settings.tts_voice_name
         )
         
         logger.info("语音聊天服务初始化完成")

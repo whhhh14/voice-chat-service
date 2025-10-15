@@ -3,10 +3,10 @@
 # 语音聊天服务启动脚本
 
 # # 颜色定义
-# RED='\033[0;31m'
-# GREEN='\033[0;32m'
-# YELLOW='\033[1;33m'
-# NC='\033[0m' # No Color
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
 # echo -e "${GREEN}================================${NC}"
 # echo -e "${GREEN}  语音聊天服务启动脚本${NC}"
@@ -56,4 +56,4 @@ echo -e "\n${GREEN}================================${NC}"
 echo -e "${GREEN}  启动语音聊天服务${NC}"
 echo -e "${GREEN}================================${NC}\n"
 
-CUDA_VISIBLE_DEVICES=7 python -m app.main
+CUDA_VISIBLE_DEVICES=2 python -m app.main
