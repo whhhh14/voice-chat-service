@@ -56,8 +56,11 @@ class Settings(BaseSettings):
     qdrant_collection_name: str = "events"
     qdrant_use_memory: bool = False  # True使用内存模式，False使用持久化模式（Docker部署）
     
-    # TTS配置
-    tts_language: str = "EN_NEWEST"
+    # TTS配置 (Kokoro TTS)
+    # 语言代码: 'a' => American English, 'b' => British English, 'z' => Mandarin Chinese
+    tts_language: str = "a"
+    tts_model_path: str
+    tts_voice_name: str = "af_heart"
     
     class Config:
         env_file = ".env"
