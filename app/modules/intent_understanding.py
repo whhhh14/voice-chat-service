@@ -143,29 +143,28 @@ class IntentUnderstanding:
                 is_fixed_command=True
             )
         
-        # 场景二：宝宝哭告诉我
+        # 场景二：事件提醒设置（设置通知和提醒）
         elif scene_type == 2:
             entities = {
                 "detection_type": intent_data.get("detection_type", ""),
-                "scene_name": intent_data.get("scene_name", "")
+                "scene_name": intent_data.get("scene_name", "事件提醒设置")
             }
             return IntentResult(
-                skill_id="baby_cry_detection",
+                skill_id="event_reminder_setup",
                 skill_type=SkillType.COMMAND,
                 confidence=confidence,
                 entities=entities,
                 is_fixed_command=True
             )
         
-        # 场景三：包裹问询
+        # 场景三：事件查询（包含历史记录查询、包裹问询等）
         elif scene_type == 3:
-            inquiry_type = intent_data.get("inquiry_type", "")
             entities = {
-                "inquiry_type": inquiry_type,
-                "scene_name": intent_data.get("scene_name", "")
+                "query_type": intent_data.get("query_type", "事件查询"),
+                "scene_name": intent_data.get("scene_name", "事件查询")
             }
             return IntentResult(
-                skill_id=f"package_inquiry_{inquiry_type}",
+                skill_id="event_query",
                 skill_type=SkillType.QA,
                 confidence=confidence,
                 entities=entities,

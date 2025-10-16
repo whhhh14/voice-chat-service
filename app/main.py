@@ -5,6 +5,7 @@ import json
 import base64
 from typing import Dict, Any, List
 from pathlib import Path
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse
 from app.config import settings
@@ -23,13 +24,6 @@ import loguru
 
 logger = loguru.logger
 logger.add("logs/app.log", rotation="10 MB", retention="7 days", enqueue=True, encoding="utf-8")
-
-# 创建FastAPI应用
-app = FastAPI(
-    title=settings.app_name,
-    version=settings.app_version,
-    description="基于WebSocket的语音聊天服务"
-)
 
 # 创建语音聊天服务实例
 voice_service = VoiceChatService()
@@ -71,9 +65,10 @@ def _load_events_from_json(json_file: str = "data/test_events.json") -> List[Eve
         return []
 
 
-@app.on_event("startup")
-async def startup_event():
-    """应用启动时的初始化"""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理"""
+    # 启动时执行
     logger.info("=" * 60)
     logger.info("检查向量数据库状态...")
     
@@ -90,7 +85,7 @@ async def startup_event():
             
             if events:
                 # 导入到向量数据库
-                success_count = voice_service.rag.add_events_batch(events)
+                success_count = await voice_service.rag.add_events_batch(events)
                 logger.info(f"✓ 已自动导入 {len(success_count)} 个测试事件")
                 
                 # 统计事件类型
@@ -110,6 +105,20 @@ async def startup_event():
         logger.info("服务将继续运行，但RAG功能可能不可用")
     
     logger.info("=" * 60)
+    
+    yield  # 应用运行期间
+    
+    # 关闭时执行
+    logger.info("应用关闭中...")
+
+
+# 创建FastAPI应用（使用 lifespan）
+app = FastAPI(
+    title=settings.app_name,
+    version=settings.app_version,
+    description="基于WebSocket的语音聊天服务",
+    lifespan=lifespan
+)
 
 
 @app.get("/health")
@@ -134,7 +143,7 @@ async def create_event(event: Event):
         事件ID
     """
     try:
-        event_id = voice_service.rag.add_event(event)
+        event_id = await voice_service.rag.add_event(event)
         return {
             "success": True,
             "event_id": event_id,
@@ -157,7 +166,7 @@ async def create_events_batch(events: list[Event]):
         事件ID列表
     """
     try:
-        event_ids = voice_service.rag.add_events_batch(events)
+        event_ids = await voice_service.rag.add_events_batch(events)
         return {
             "success": True,
             "event_ids": event_ids,
@@ -181,7 +190,7 @@ async def search_events(query: EventSearchQuery):
         搜索结果
     """
     try:
-        result = voice_service.rag.retrieve(
+        result = await voice_service.rag.retrieve_async(
             query=query.query,
             context=None,
             filters=query.filters,
@@ -221,6 +230,54 @@ async def get_collection_info():
         }
     except Exception as e:
         logger.error(f"获取集合信息失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/events/list")
+async def list_all_events(limit: int = 1000, offset: int = 0):
+    """
+    列出所有事件（不走向量搜索，直接从Qdrant获取）
+    
+    Args:
+        limit: 返回数量限制
+        offset: 偏移量
+        
+    Returns:
+        事件列表
+    """
+    try:
+        # 直接从 Qdrant 获取所有点（不依赖向量搜索）
+        scroll_result = voice_service.rag.vector_db.client.scroll(
+            collection_name=voice_service.rag.vector_db.collection_name,
+            limit=limit,
+            offset=offset,
+            with_payload=True,
+            with_vectors=False
+        )
+        
+        # 解析结果
+        events = []
+        for point in scroll_result[0]:  # scroll_result is (points, next_page_offset)
+            payload = point.payload
+            events.append({
+                "id": str(point.id),
+                "event_time": payload.get("event_time", ""),
+                "event_name": payload.get("event_name", ""),
+                "event_desc": payload.get("event_desc", ""),
+                "device_id": payload.get("device_id", ""),
+                "device_name": payload.get("device_name", ""),
+                "event_type_id": payload.get("event_type_id", ""),
+            })
+        
+        return {
+            "success": True,
+            "events": events,
+            "count": len(events),
+            "total": voice_service.rag.count()
+        }
+        
+    except Exception as e:
+        logger.error(f"列出事件失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

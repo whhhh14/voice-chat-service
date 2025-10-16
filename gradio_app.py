@@ -12,13 +12,15 @@ import numpy as np
 import librosa
 import io
 import wave
-from typing import Optional, Tuple, Dict
+import requests
+from typing import Optional, Tuple, Dict, List
 from datetime import datetime
 import os
 import loguru
 import time
 import hashlib
 from pathlib import Path
+import pandas as pd
 
 logger = loguru.logger
 logger.add("logs/gradio_app.log", rotation="10 MB", retention="7 days", enqueue=True, encoding="utf-8")
@@ -33,6 +35,9 @@ GRADIO_TEMP_DIR = DATA_DIR / "gradio"
 # 确保目录存在
 for directory in [INPUT_AUDIO_DIR, OUTPUT_AUDIO_DIR, RESULTS_DIR, GRADIO_TEMP_DIR]:
     directory.mkdir(parents=True, exist_ok=True)
+
+# API 配置
+API_BASE_URL = "http://192.168.111.9:8900"
 
 
 def calculate_audio_hash(audio_data: bytes) -> str:
@@ -452,6 +457,204 @@ def sync_process_voice_chat(audio_input, context_str: str, ws_url: str):
     return asyncio.run(process_voice_chat(audio_input, context_str, ws_url))
 
 
+# ==================== 事件管理功能 ====================
+
+def get_events_from_api(api_url: str = API_BASE_URL) -> Tuple[pd.DataFrame, str]:
+    """
+    从 API 获取向量数据库中的所有事件
+    
+    Args:
+        api_url: API 基础地址
+        
+    Returns:
+        (DataFrame, 状态信息)
+    """
+    try:
+        # 获取集合信息
+        info_response = requests.get(f"{api_url}/api/events/collection/info", timeout=5)
+        info_response.raise_for_status()
+        info_data = info_response.json()
+        
+        if not info_data.get("success"):
+            return pd.DataFrame(), f"❌ 获取失败: {info_data.get('detail', '未知错误')}"
+        
+        collection_info = info_data.get("info", {})
+        points_count = collection_info.get("points_count", 0)
+        collection_name = collection_info.get("name", "unknown")
+        
+        if points_count == 0:
+            return pd.DataFrame(), f"📊 集合 '{collection_name}' 中没有事件数据"
+        
+        # 直接列出所有事件（不走向量搜索）
+        list_response = requests.get(
+            f"{api_url}/api/events/list",
+            params={"limit": 1000, "offset": 0},
+            timeout=10
+        )
+        list_response.raise_for_status()
+        list_data = list_response.json()
+        
+        if not list_data.get("success"):
+            return pd.DataFrame(), f"❌ 列出事件失败: {list_data.get('detail', '未知错误')}"
+        
+        events = list_data.get("events", [])
+        
+        if not events:
+            return pd.DataFrame(), f"⚠️ 集合中有 {points_count} 个事件，但列表为空"
+        
+        # 转换为 DataFrame（按时间倒序排序）
+        events_data = []
+        for idx, event in enumerate(sorted(events, key=lambda x: x.get("event_time", ""), reverse=True), 1):
+            events_data.append({
+                "序号": idx,
+                "事件时间": event.get("event_time", ""),
+                "事件名称": event.get("event_name", ""),
+                "事件描述": event.get("event_desc", ""),
+                "设备ID": event.get("device_id", ""),
+                "设备名称": event.get("device_name", ""),
+                "事件类型ID": event.get("event_type_id", ""),
+            })
+        
+        df = pd.DataFrame(events_data)
+        status = f"✅ 成功加载 {len(events_data)} 个事件（集合 '{collection_name}' 共 {points_count} 个）"
+        
+        logger.info(f"成功从 API 获取 {len(events_data)} 个事件")
+        return df, status
+        
+    except requests.exceptions.RequestException as e:
+        error_msg = f"❌ API 请求失败: {str(e)}"
+        logger.error(error_msg)
+        return pd.DataFrame(), error_msg
+    except Exception as e:
+        error_msg = f"❌ 处理失败: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return pd.DataFrame(), error_msg
+
+
+def insert_event_to_api(
+    event_time: str,
+    event_name: str,
+    event_desc: str,
+    device_id: int,
+    device_name: str,
+    event_type_id: int,
+    api_url: str = API_BASE_URL
+) -> Tuple[pd.DataFrame, str]:
+    """
+    插入新事件到向量数据库
+    
+    Returns:
+        (更新后的DataFrame, 状态信息)
+    """
+    try:
+        # 构建事件数据
+        event_data = {
+            "event_time": event_time,
+            "event_name": event_name,
+            "event_desc": event_desc,
+            "device_id": device_id,
+            "device_name": device_name,
+            "event_type_id": event_type_id
+        }
+        
+        logger.info(f"插入事件: {event_data}")
+        
+        # 发送请求
+        response = requests.post(
+            f"{api_url}/api/events",
+            json=event_data,
+            timeout=10
+        )
+        response.raise_for_status()
+        result = response.json()
+        
+        if not result.get("success"):
+            error_msg = f"❌ 插入失败: {result.get('detail', '未知错误')}"
+            logger.error(error_msg)
+            return pd.DataFrame(), error_msg
+        
+        event_id = result.get("event_id", "")
+        logger.info(f"✅ 事件插入成功: ID={event_id}")
+        
+        # 重新加载事件列表
+        df, load_status = get_events_from_api(api_url)
+        
+        insert_status = f"✅ 事件插入成功！\n\n**事件 ID**: {event_id}\n\n{load_status}"
+        return df, insert_status
+        
+    except requests.exceptions.RequestException as e:
+        error_msg = f"❌ API 请求失败: {str(e)}"
+        logger.error(error_msg)
+        return pd.DataFrame(), error_msg
+    except Exception as e:
+        error_msg = f"❌ 插入失败: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return pd.DataFrame(), error_msg
+
+
+def test_event_search(query: str, api_url: str = API_BASE_URL) -> Tuple[pd.DataFrame, str]:
+    """
+    测试事件搜索
+    
+    Args:
+        query: 搜索查询
+        api_url: API 基础地址
+        
+    Returns:
+        (搜索结果DataFrame, 状态信息)
+    """
+    try:
+        logger.info(f"搜索查询: {query}")
+        
+        # 发送搜索请求
+        response = requests.post(
+            f"{api_url}/api/events/search",
+            json={"query": query, "top_k": 10},
+            timeout=10
+        )
+        response.raise_for_status()
+        result = response.json()
+        
+        if not result.get("success"):
+            error_msg = f"❌ 搜索失败: {result.get('detail', '未知错误')}"
+            return pd.DataFrame(), error_msg
+        
+        results = result.get("results", [])
+        
+        if not results:
+            status = f"⚠️ 查询「{query}」没有找到匹配的事件"
+            return pd.DataFrame(), status
+        
+        # 转换为 DataFrame
+        search_data = []
+        for idx, item in enumerate(results, 1):
+            metadata = item.get("metadata", {})
+            search_data.append({
+                "排名": idx,
+                "相似度": f"{item.get('score', 0):.4f}",
+                "事件时间": metadata.get("event_time", ""),
+                "事件名称": metadata.get("event_name", ""),
+                "事件描述": metadata.get("event_desc", ""),
+                "设备名称": metadata.get("device_name", ""),
+                "完整描述": item.get("document", ""),
+            })
+        
+        df = pd.DataFrame(search_data)
+        status = f"✅ 查询「{query}」找到 {len(search_data)} 个匹配事件"
+        
+        logger.info(f"搜索成功: 找到 {len(search_data)} 个结果")
+        return df, status
+        
+    except requests.exceptions.RequestException as e:
+        error_msg = f"❌ API 请求失败: {str(e)}"
+        logger.error(error_msg)
+        return pd.DataFrame(), error_msg
+    except Exception as e:
+        error_msg = f"❌ 搜索失败: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return pd.DataFrame(), error_msg
+
+
 # 创建 Gradio 界面
 def create_interface():
     """创建 Gradio 界面"""
@@ -466,70 +669,84 @@ def create_interface():
         - 📝 查看 ASR 识别结果
         - 💬 获取 LLM 回复
         - 🔊 试听 TTS 合成的语音
+        - 📊 管理向量数据库中的事件数据
         """)
-
+        
+        # API URL 配置（全局）
         with gr.Row():
-            with gr.Column(scale=2):
-                gr.Markdown("### 📥 输入")
+            api_url_input = gr.Textbox(
+                label="🌐 API 服务地址",
+                value=API_BASE_URL,
+                placeholder="http://your.server:8900",
+                scale=3
+            )
+        
+        # 使用 Tabs 组件分隔两个功能
+        with gr.Tabs():
+            # ========== 语音测试标签页 ==========
+            with gr.Tab("🎙️ 语音测试"):
 
-                # ws_url 输入
-                ws_url_input = gr.Textbox(
-                    label="WebSocket 服务地址",
-                    value="ws://192.168.111.9:8900/ws",
-                    placeholder="ws://your.server:8900/ws",
-                    lines=1,
-                )
-
-                # 音频输入（支持录音和上传）
-                audio_input = gr.Audio(
-                    sources=["microphone", "upload"],
-                    type="numpy",
-                    label="音频输入（录音或上传）",
-                )
-
-                # 上下文输入
-                context_input = gr.Textbox(
-                    label="上下文信息（JSON 格式，可选）",
-                    placeholder='{"user_id": "test_user", "session_id": "test_session"}',
-                    lines=3,
-                )
-
-                # 按钮
                 with gr.Row():
-                    submit_btn = gr.Button("🚀 发送并处理", variant="primary", size="lg")
-                    clear_btn = gr.ClearButton(components=[audio_input, context_input], value="🗑️ 清空")
+                    with gr.Column(scale=2):
+                        gr.Markdown("### 📥 输入")
 
-            with gr.Column(scale=3):
-                gr.Markdown("### 📤 输出")
+                        # ws_url 输入
+                        ws_url_input = gr.Textbox(
+                            label="WebSocket 服务地址",
+                            value="ws://192.168.111.9:8900/ws",
+                            placeholder="ws://your.server:8900/ws",
+                            lines=1,
+                        )
 
-                # 状态信息
-                status_output = gr.Markdown(label="处理状态")
+                        # 音频输入（支持录音和上传）
+                        audio_input = gr.Audio(
+                            sources=["microphone", "upload"],
+                            type="numpy",
+                            label="音频输入（录音或上传）",
+                        )
 
-                # ASR 识别结果
-                asr_output = gr.Textbox(
-                    label="🗣️ ASR 识别文本",
-                    lines=2,
-                    interactive=False,
-                )
+                        # 上下文输入
+                        context_input = gr.Textbox(
+                            label="上下文信息（JSON 格式，可选）",
+                            placeholder='{"user_id": "test_user", "session_id": "test_session"}',
+                            lines=3,
+                        )
 
-                # LLM 回复
-                reply_output = gr.Textbox(
-                    label="💬 回复文本",
-                    lines=4,
-                    interactive=False,
-                )
+                        # 按钮
+                        with gr.Row():
+                            submit_btn = gr.Button("🚀 发送并处理", variant="primary", size="lg")
+                            clear_btn = gr.ClearButton(components=[audio_input, context_input], value="🗑️ 清空")
 
-                # 回复音频
-                audio_output = gr.Audio(
-                    label="🔊 TTS 合成音频",
-                    type="filepath",
-                    autoplay=True
-                )
+                    with gr.Column(scale=3):
+                        gr.Markdown("### 📤 输出")
 
-        # 使用示例
-        with gr.Accordion("📖 使用说明", open=False):
-            gr.Markdown("""
-            ## 使用步骤
+                        # 状态信息
+                        status_output = gr.Markdown(label="处理状态")
+
+                        # ASR 识别结果
+                        asr_output = gr.Textbox(
+                            label="🗣️ ASR 识别文本",
+                            lines=2,
+                            interactive=False,
+                        )
+
+                        # LLM 回复
+                        reply_output = gr.Textbox(
+                            label="💬 回复文本",
+                            lines=4,
+                            interactive=False,
+                        )
+
+                        # 回复音频
+                        audio_output = gr.Audio(
+                            label="🔊 TTS 合成音频",
+                            type="filepath",
+                        )
+
+                # 使用示例
+                with gr.Accordion("📖 使用说明", open=False):
+                    gr.Markdown("""
+                    ## 使用步骤
 
             1. **输入 WebSocket 服务地址**：
                - 输入 WebSocket 服务地址，默认值为 `ws://192.168.111.9:8900/ws`
@@ -588,43 +805,124 @@ def create_interface():
             - Anything delivered today?
             """)
 
-        # 预定义示例
-        # gr.Markdown("### 🎯 快速测试")
-        # gr.Markdown("点击下方按钮快速测试固定指令（需要先生成测试音频）")
-
-        # with gr.Row():
-        #     example_btn1 = gr.Button("示例 1: 打开灯", size="sm")
-        #     example_btn2 = gr.Button("示例 2: 查询天气", size="sm")
-        #     example_btn3 = gr.Button("示例 3: 播放音乐", size="sm")
-
-        # 事件处理
-        submit_btn.click(
-            fn=sync_process_voice_chat,
-            inputs=[audio_input, context_input, ws_url_input],
-            outputs=[status_output, asr_output, reply_output, audio_output],
-        )
-
-        # 示例按钮（这些需要预先生成的音频文件）
-        def load_example(text: str):
-            return f'{{"text": "{text}"}}', f"示例：{text}\n\n请录制或上传音频文件"
-
-        # example_btn1.click(
-        #     fn=lambda: load_example("打开灯"),
-        #     inputs=[],
-        #     outputs=[context_input, status_output],
-        # )
-
-        # example_btn2.click(
-        #     fn=lambda: load_example("今天天气"),
-        #     inputs=[],
-        #     outputs=[context_input, status_output],
-        # )
-
-        # example_btn3.click(
-        #     fn=lambda: load_example("播放音乐"),
-        #     inputs=[],
-        #     outputs=[context_input, status_output],
-        # )
+                # 事件处理
+                submit_btn.click(
+                    fn=sync_process_voice_chat,
+                    inputs=[audio_input, context_input, ws_url_input],
+                    outputs=[status_output, asr_output, reply_output, audio_output],
+                )
+            
+            # ========== 事件管理标签页 ==========
+            with gr.Tab("📊 事件管理"):
+                gr.Markdown("""
+                ### 向量数据库事件管理
+                
+                - 📋 查看当前所有事件
+                - ➕ 插入新事件
+                - 🔍 测试事件搜索
+                """)
+                
+                with gr.Row():
+                    # 左侧：事件列表和刷新
+                    with gr.Column(scale=2):
+                        gr.Markdown("### 📋 当前事件列表")
+                        
+                        refresh_btn = gr.Button("🔄 刷新事件列表", variant="primary")
+                        events_status = gr.Markdown(value="点击「刷新事件列表」加载数据")
+                        events_table = gr.Dataframe(
+                            headers=["序号", "事件时间", "事件名称", "事件描述", "设备ID", "设备名称", "事件类型ID", "相似度"],
+                            label="事件数据",
+                            wrap=True
+                        )
+                    
+                    # 右侧：插入新事件
+                    with gr.Column(scale=1):
+                        gr.Markdown("### ➕ 插入新事件")
+                        
+                        insert_event_time = gr.Textbox(
+                            label="事件时间",
+                            placeholder="2025-10-15 14:30:00",
+                            value=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        )
+                        insert_event_name = gr.Textbox(
+                            label="事件名称",
+                            placeholder="例如: 宝宝哭声检测"
+                        )
+                        insert_event_desc = gr.Textbox(
+                            label="事件描述",
+                            placeholder="例如: 在卧室检测到宝宝哭声",
+                            lines=3
+                        )
+                        insert_device_id = gr.Number(
+                            label="设备ID",
+                            value=1001,
+                            precision=0
+                        )
+                        insert_device_name = gr.Textbox(
+                            label="设备名称",
+                            placeholder="例如: 卧室摄像头",
+                            value="卧室摄像头"
+                        )
+                        insert_event_type_id = gr.Number(
+                            label="事件类型ID",
+                            value=1,
+                            precision=0
+                        )
+                        
+                        insert_btn = gr.Button("✨ 插入事件", variant="primary", size="lg")
+                        insert_status = gr.Markdown(value="")
+                
+                # 搜索测试区域
+                gr.Markdown("### 🔍 搜索测试")
+                with gr.Row():
+                    with gr.Column(scale=3):
+                        search_query = gr.Textbox(
+                            label="搜索查询",
+                            placeholder="例如: 昨天卧室宝宝有哭吗？",
+                            lines=2
+                        )
+                        search_btn = gr.Button("🔍 搜索", variant="secondary")
+                    with gr.Column(scale=1):
+                        gr.Markdown("""
+                        **测试示例：**
+                        - 昨天卧室宝宝有哭吗？
+                        - 今天门口有快递吗？
+                        - 最近有访客吗？
+                        """)
+                
+                search_status = gr.Markdown(value="")
+                search_results = gr.Dataframe(
+                    headers=["排名", "相似度", "事件时间", "事件名称", "事件描述", "设备名称", "完整描述"],
+                    label="搜索结果",
+                    wrap=True
+                )
+                
+                # 事件管理按钮绑定
+                refresh_btn.click(
+                    fn=get_events_from_api,
+                    inputs=[api_url_input],
+                    outputs=[events_table, events_status]
+                )
+                
+                insert_btn.click(
+                    fn=insert_event_to_api,
+                    inputs=[
+                        insert_event_time,
+                        insert_event_name,
+                        insert_event_desc,
+                        insert_device_id,
+                        insert_device_name,
+                        insert_event_type_id,
+                        api_url_input
+                    ],
+                    outputs=[events_table, insert_status]
+                )
+                
+                search_btn.click(
+                    fn=test_event_search,
+                    inputs=[search_query, api_url_input],
+                    outputs=[search_results, search_status]
+                )
 
         # 页脚
         gr.Markdown("""
