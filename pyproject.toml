@@ -25,6 +25,8 @@ dependencies = [
     "en-core-web-sm @ file://${PROJECT_ROOT}/wheels/en_core_web_sm-3.8.0-py3-none-any.whl",
     "pip>=25.2",
     "qdrant-client>=1.15.1",
+    "onnxruntime>=1.23.1",
+    "kokoro-onnx>=0.4.9",
 ]
 
 [[tool.uv.index]]

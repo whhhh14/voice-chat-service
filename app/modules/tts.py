@@ -11,8 +11,9 @@ import numpy as np
 import librosa
 import soundfile as sf
 
-import torch
-from kokoro import KPipeline, KModel
+import onnxruntime
+from onnxruntime import InferenceSession
+from kokoro_onnx import Kokoro
 
 import loguru
 
@@ -20,11 +21,11 @@ logger = loguru.logger
 
 
 class TTS:
-    """语音合成器"""
+    """语音合成器 (ONNX版本)"""
     
     def __init__(
         self,
-        language: str = "a",  # 'a' => American English
+        language: str = "en-us",  # 'en-us' => American English
         model_path: str = None,
         voice_name: str = "af_heart"
     ):
@@ -32,35 +33,35 @@ class TTS:
         初始化TTS
         
         Args:
-            language: TTS语言代码 ('a' => American English, 'z' => Mandarin Chinese, etc.)
-            model_path: Kokoro模型路径
-            voice_name: 声音名称
+            language: TTS语言代码 ('en-us' => American English)
+            model_path: Kokoro ONNX模型路径 (如: kokoro-v1.0.onnx)
+            voice_name: 声音名称 (如: af_sarah, af_heart, etc.)
         """
         self.language = language
-        device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model_path = model_path
+        self.voices_path = os.path.join(os.path.dirname(self.model_path), "voices-v1.0.bin")
         self.voice_name = voice_name
         self.sample_rate = 16000  # 最终输出采样率
         
-        # 初始化Kokoro模型
-        self.kmodel = KModel(
-            repo_id='hexgrad/Kokoro-82M',
-            config=f"{model_path}/config.json",
-            model=f"{model_path}/kokoro-v1_0.pth",
-        ).to(device).eval()
-
-        self.pipeline = KPipeline(
-            repo_id='hexgrad/Kokoro-82M', 
-            lang_code=language, 
-            model=self.kmodel,
-            device=device
+        # 创建ONNX Runtime Session
+        providers = onnxruntime.get_available_providers()
+        logger.info(f"可用的ONNX Runtime提供者: {providers}")
+        
+        # 配置Session选项
+        sess_options = onnxruntime.SessionOptions()
+        cpu_count = os.cpu_count() if os.cpu_count() < 16 else 16
+        logger.info(f"设置线程数为CPU核心数: {cpu_count}")
+        sess_options.intra_op_num_threads = cpu_count
+        
+        # 创建推理Session
+        self.session = InferenceSession(
+            model_path, providers=providers, sess_options=sess_options
         )
         
-        # 加载voice tensor
-        voice_path = f'{model_path}/voices/{voice_name}.pt'
-        self.voice_tensor = torch.load(voice_path, weights_only=True)
+        # 初始化Kokoro ONNX模型
+        self.kokoro = Kokoro.from_session(self.session, self.voices_path)
         
-        logger.info(f"初始化Kokoro TTS: language={language}, model_path={model_path}, voice={voice_name}")
+        logger.info(f"初始化Kokoro ONNX TTS: language={language}, model_path={model_path}, voice={voice_name}")
     
     def synthesize(self, text: str, speed: float = 1.0) -> Optional[TTSResult]:
         """
@@ -76,22 +77,19 @@ class TTS:
         try:
             logger.info(f"开始语音合成: {text}")
             
-            # 使用Kokoro生成音频
-            generator = self.pipeline(
-                text, 
-                voice=self.voice_tensor,
-                speed=speed, 
-                split_pattern=r'\n+'
+            # 使用Kokoro ONNX生成音频
+            samples, sample_rate = self.kokoro.create(
+                text,
+                voice=self.voice_name,
+                speed=speed,
+                lang=self.language
             )
             
-            # 获取生成的音频
-            gs, ps, audio = next(generator)
-            logger.info(f"生成文本: {gs}")
-            logger.info(f"音素: {ps}")
+            logger.info(f"原始采样率: {sample_rate}Hz")
             
-            # Kokoro输出的是float32 numpy数组，采样率24000Hz
-            audio_np = audio.detach().cpu().numpy().astype(np.float32)
-            original_sr = 24000
+            # samples是float32 numpy数组
+            audio_np = samples.astype(np.float32)
+            
             # 使用临时目录生成音频文件
             tmp_dir = os.path.join(os.path.dirname(__file__), '../..', 'tmp')
             os.makedirs(tmp_dir, exist_ok=True)
@@ -100,11 +98,12 @@ class TTS:
             logger.info(f"完整音频文件路径: {src_path}")
 
             # 保存当前音频为 wav 文件
-            sf.write(src_path, audio_np, original_sr)
+            sf.write(src_path, audio_np, sample_rate)
             
             # 重采样到16K
-            if original_sr != 16000:
-                audio_np = librosa.resample(audio_np, orig_sr=original_sr, target_sr=16000)
+            if sample_rate != self.sample_rate:
+                audio_np = librosa.resample(audio_np, orig_sr=sample_rate, target_sr=self.sample_rate)
+                logger.info(f"重采样到 {self.sample_rate}Hz")
             
             # 转为 16bit PCM
             audio_int16 = (audio_np * 32767.0).astype(np.int16).tobytes()
@@ -137,11 +136,27 @@ class TTS:
 
 
 if __name__ == "__main__":
-    # CUDA_VISIBLE_DEVICES=5 python -m app.modules.tts
-    # 'a' => American English, 'z' => Mandarin Chinese
+    # python -m app.modules.tts
+    # 'en-us' => American English
     import time
+    import sys
 
-    tts = TTS(language="a", voice_name="af_heart", model_path="/data/work/MaxZeng/work/models/Kokoro-82M")
+    # 使用示例:
+    # python -m app.modules.tts /path/to/kokoro-v1.0.onnx
+    
+    if len(sys.argv) < 2:
+        print("用法: python -m app.modules.tts <model_path>")
+        print("示例: python -m app.modules.tts kokoro-v1.0.onnx")
+        sys.exit(1)
+    
+    model_path = sys.argv[1]
+    
+    tts = TTS(
+        language="en-us", 
+        voice_name="af_sarah", 
+        model_path=model_path
+    )
+    
     # warmup
     tts.synthesize("Open the door")
 

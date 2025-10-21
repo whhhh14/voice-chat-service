@@ -1,31 +1,138 @@
 version: '3.8'
 
 services:
-  voice-chat-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: voice-chat-service
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
+  # ---------- 1. Qdrant 向量数据库 ----------
+  qdrant:
+    image: qdrant/qdrant:v1.15.5
+    container_name: ces-qdrant
     restart: unless-stopped
+    ports:
+      - "8333:6333"     # HTTP
+      - "8334:6334"     # gRPC
     volumes:
-      - ./logs:/app/logs
+      - ./qdrant_storage:/qdrant/storage
+    environment:
+      QDRANT__LOG_LEVEL: INFO
     networks:
       - voice-chat-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4g
+
+  # ---------- 2. vLLM LLM 推理 ----------
+  vllm-llm:
+    image: vllm/vllm-openai:v0.11.0
+    container_name: vllm-llm
+    restart: unless-stopped
+    ports:
+      - "8801:8801"
+    volumes:
+      - /data/work/MaxZeng/work/models/Qwen3-4B-Instruct-2507:/model
+    environment:
+      - CUDA_VISIBLE_DEVICES=2
+    networks:
+      - voice-chat-network
+    command: >
+      --model /model
+      --served-model-name Qwen3-4B-Instruct-2507
+      --dtype bfloat16
+      --max-model-len 8192
+      --gpu-memory-utilization 0.5
+      --host 0.0.0.0
+      --port 8801
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 16g
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['2']
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8801/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+
+  # ---------- 3. vLLM Embedding 推理 ----------
+  vllm-embedding:
+    image: vllm/vllm-openai:v0.11.0
+    container_name: vllm-embedding
+    restart: unless-stopped
+    ports:
+      - "8802:8802"
+    volumes:
+      - /data/work/MaxZeng/work/models/Qwen3-Embedding-0.6B:/model
+    environment:
+      - CUDA_VISIBLE_DEVICES=2
+    networks:
+      - voice-chat-network
+    command: >
+      --model /model
+      --served-model-name Qwen3-Embedding-0.6B
+      --dtype bfloat16
+      --max-model-len 512
+      --host 0.0.0.0
+      --port 8802
+      --task embed
+      --gpu-memory-utilization 0.15
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8g
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['2']
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8802/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+  
+  # ---------- 4. 语音聊天服务 ----------
+  # voice-chat-service:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: voice-chat-service
+  #   ports:
+  #     - "8901:8901"
+  #   env_file:
+  #     - .env
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./logs:/app/logs
+  #   networks:
+  #     - voice-chat-network
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8901/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 10s
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '4'
+  #         memory: 8g
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             device_ids: ['2']
+  #             capabilities: [gpu]
 
 networks:
   voice-chat-network:
     driver: bridge
-
-volumes:
-  logs:
-
