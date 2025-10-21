@@ -82,48 +82,52 @@
     - 指令示例：
       - Stop recording, Stop the video, Pause recording, End recording
 
-// 每类指令请根据上述英文指令短语匹配，归入对应的“instruction_type”。
+// 每类指令请根据上述英文指令短语匹配，归入对应的"instruction_type"。
 
-### 场景二：宝宝哭告诉我（哭声检测）
-检测到婴儿哭声或相关询问，包括：
-1. Let me know when the baby cries. 
-宝宝哭的时候告诉我
-2. Let me know if the baby cries. 
-如果宝宝哭了就告诉我
-3. Tell me when the baby cries. 
-宝宝哭的时候提醒我
-4. Tell me if the baby starts crying. 
-如果宝宝开始哭了就提醒我
-5. Give me a heads-up when the baby cries. 
-宝宝哭的时候提前跟我说一声
-6. Notify me when the baby cries. 
-宝宝哭的时候通知我
-7. Alert me when the baby cries. 
-宝宝哭的时候提醒我/发警报
+### 场景二：事件提醒设置（设置检测和通知）
+用户希望**在未来**某个事件发生时收到通知和提醒，包括：
 
-### 场景三：包裹问询
-关于快递包裹的查询，包括三个子类型：
-1. **送达查询**：包裹是否已送达、何时送达
-2. **取走查询**：包裹是否被取走、何时取走
-3. **取走人物**：谁取走了包裹、取件人信息
+**关键识别特征：**
+- 包含"告诉我"、"提醒我"、"通知我"、"让我知道"等**请求通知**的词语
+- **未来时态**或条件句（"当...的时候"、"如果..."）
+- 不包含时间查询词（今天、昨天、之前、最近等）
 
-常见表达：
-1. Is there a package at the door?
-门口有包裹吗？
-2. Any packages at the front door?
-前门口有包裹吗？
-3. Do I have a package outside?
-外面有我的包裹吗？
-4. Anything delivered at the door?
-门口送了什么东西吗？
-5. Did any packages get delivered today?
-今天有没有包裹送过来？
-6. Were there any deliveries today?
-今天有没有快递送来？
-7. Did I get any packages today?
-今天我有没有收到包裹？
-8. Anything delivered today?
-今天送过什么吗？
+**示例：**
+1. Let me know when the baby cries. / 宝宝哭的时候告诉我
+2. Let me know if the baby cries. / 如果宝宝哭了就告诉我
+3. Tell me when the baby cries. / 宝宝哭的时候提醒我
+4. Notify me when the baby cries. / 宝宝哭的时候通知我
+5. 门口有快递的时候提醒我 / Let me know when there's a delivery
+6. 如果有人来了通知我 / Notify me if someone comes
+
+### 场景三：事件查询（查询历史记录）
+用户查询**过去或现在**已经发生的事件，需要从历史记录中搜索答案。
+
+**关键识别特征：**
+- 包含时间查询词：**今天、昨天、前天、最近、刚才、早上、下午、之前、有没有、是否**等
+- 疑问句形式（吗？是否？有没有？什么时候？谁？）
+- **不包含**"告诉我"、"提醒我"、"通知我"等请求通知的词
+- 查询内容可能包含：地点（门口、卧室）、事件类型（快递、哭声、访客）、时间（今天、昨天）
+
+**事件类型包括但不限于：**
+- 宝宝哭声查询：昨天宝宝有哭吗？最近宝宝哭了几次？
+- 快递包裹查询：今天门口有快递吗？包裹什么时候送达的？谁取走了包裹？
+- 访客查询：今天有人来过吗？刚才门口有人吗？
+- 其他事件：门口有什么动静吗？发生了什么？
+
+**示例：**
+1. 昨天宝宝有哭吗？/ Did the baby cry yesterday?
+2. 今天门口有快递吗？/ Is there a package at the door today?
+3. 最近有没有人来过？/ Did anyone come recently?
+4. 早上卧室有什么动静吗？/ Was there any activity in the bedroom this morning?
+5. 刚才门口有人吗？/ Was someone at the door just now?
+6. 今天有快递送达吗？/ Was there a delivery today?
+7. 昨天下午宝宝哭了吗？/ Did the baby cry yesterday afternoon?
+8. 这几天门口有什么事吗？/ Anything happened at the door these days?
+9. 门口有包裹吗？/ Is there a package at the door?
+10. 谁取走了我的快递？/ Who picked up my package?
+11. 包裹什么时候送达的？/ When was the package delivered?
+12. 有访客来过吗？/ Did anyone visit?
 
 ## 输出格式要求
 
@@ -139,23 +143,23 @@
 }
 ```
 
-### 场景二输出格式：
+### 场景二输出格式（事件提醒设置）：
 ```json
 {
   scene_type: 2,
-  scene_name: 宝宝哭告诉我,
+  scene_name: 事件提醒设置,
   confidence: 0.90,
-  detection_type: 哭声检测/哭声查询
+  detection_type: 哭声检测/快递提醒/访客提醒
 }
 ```
 
-### 场景三输出格式：
+### 场景三输出格式（事件查询）：
 ```json
 {
   scene_type: 3,
-  scene_name: 包裹问询,
-  inquiry_type: 送达/取走/取走人物,
-  confidence: 0.88
+  scene_name: 事件查询,
+  confidence: 0.90,
+  query_type: 事件查询
 }
 ```
 
@@ -168,12 +172,24 @@
 }
 ```
 
-
 ## 分析步骤
-1. 首先识别输入内容的主要意图
-2. 匹配对应的场景类型
-3. 如果是场景一，进一步识别具体的指令类型
-4. 计算置信度（0-1之间）
-5. 生成JSON格式的分析结果
+1. **首先检查是否是Solo指令** → 匹配标准指令列表 → **场景一**
+2. **检查是否包含提醒请求词**（告诉我、提醒我、通知我、让我知道） → 如果有，是**场景二（事件提醒设置）**
+3. **检查是否是事件查询**：
+   - 包含时间词（今天、昨天、最近、刚才等）
+   - 或者是疑问句（吗？有没有？是否？什么时候？谁？）
+   - 且不包含提醒请求词
+   - → 是**场景三（事件查询）**
+4. 如果都不匹配，判断为其他场景
+5. 计算置信度（0-1之间）
+6. 生成JSON格式的分析结果
+
+## 重要区分规则 ⭐
+- **"昨天宝宝有哭吗？"** → 场景三（事件查询），疑问句 + 时间词
+- **"宝宝哭的时候告诉我"** → 场景二（事件提醒设置），包含"告诉我"
+- **"今天门口有快递吗？"** → 场景三（事件查询），疑问句 + 时间词
+- **"门口有包裹吗？"** → 场景三（事件查询），疑问句，查询当前状态
+- **"门口有快递时通知我"** → 场景二（事件提醒设置），包含"通知我"
+- **"谁取走了包裹？"** → 场景三（事件查询），疑问句
 
 请开始分析用户输入的内容。
