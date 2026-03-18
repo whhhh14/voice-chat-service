@@ -20,8 +20,10 @@ loguru==0.7.2
 # funasr==1.0.0  # FunASR
 
 # TTS相关
-# edge-tts==6.1.9  # Edge TTS
-# pyttsx3==2.90  # 离线TTS
+kokoro-onnx>=0.4.9        # Kokoro TTS (ONNX)
+onnxruntime>=1.16.0       # ONNX Runtime (CPU); 如有 GPU 可改为 onnxruntime-gpu
+# edge-tts==6.1.9         # 备选: Edge TTS
+# pyttsx3==2.90           # 备选: 离线TTS
 
 # LLM相关
 openai==1.7.2  # OpenAI API (包含 Embedding API，支持同步和异步)

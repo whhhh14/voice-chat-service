@@ -34,9 +34,9 @@ services:
     ports:
       - "8801:8801"
     volumes:
-      - /data/work/MaxZeng/work/models/Qwen3-4B-Instruct-2507:/model
+      - ${LLM_MODEL_PATH:-/path/to/your/llm-model}:/model
     environment:
-      - CUDA_VISIBLE_DEVICES=2
+      - CUDA_VISIBLE_DEVICES=${LLM_GPU_ID:-0}
     networks:
       - voice-chat-network
     command: >
@@ -55,7 +55,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ['2']
+              device_ids: ['${LLM_GPU_ID:-0}']
               capabilities: [gpu]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8801/health"]
@@ -71,9 +71,9 @@ services:
     ports:
       - "8802:8802"
     volumes:
-      - /data/work/MaxZeng/work/models/Qwen3-Embedding-0.6B:/model
+      - ${EMBEDDING_MODEL_PATH:-/path/to/your/embedding-model}:/model
     environment:
-      - CUDA_VISIBLE_DEVICES=2
+      - CUDA_VISIBLE_DEVICES=${EMBED_GPU_ID:-0}
     networks:
       - voice-chat-network
     command: >
@@ -93,10 +93,8 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ['2']
+              device_ids: ['${EMBED_GPU_ID:-0}']
               capabilities: [gpu]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8802/health"]
       interval: 15s
       timeout: 5s
       retries: 8

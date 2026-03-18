@@ -56,4 +56,4 @@ echo -e "\n${GREEN}================================${NC}"
 echo -e "${GREEN}  启动语音聊天服务${NC}"
 echo -e "${GREEN}================================${NC}\n"
 
-CUDA_VISIBLE_DEVICES=2 python -m app.main
+CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0} python -m app.main

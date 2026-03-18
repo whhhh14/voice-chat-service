@@ -48,3 +48,6 @@ QDRANT_USE_MEMORY=True
 
 # TTS配置
 TTS_LANGUAGE=EN_NEWEST
+TTS_MODEL_PATH=/path/to/your/kokoro-v0_19.fp16.onnx  # Kokoro ONNX 模型文件路径
+# 下载地址: https://github.com/thewh1teagle/kokoro-onnx/releases
+# 需同时下载同目录下的 voices-v1.0.bin 文件

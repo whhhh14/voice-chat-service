@@ -110,10 +110,9 @@ class ASR:
 
 
 if __name__ == "__main__":
-    # CUDA_VISIBLE_DEVICES=5 python -m app.modules.asr
-
     import librosa
-    asr = ASR(model_path="/data/work/MaxZeng/work/models/whisper-large-v3", language="en")
-    audio_data, sr = librosa.load("tmp/tmprwzsjcuv.wav", sr=16000)
+    # 使用方式示例：python -m app.modules.asr
+    asr = ASR(model_path="base", language="zh")  # 可换成本地模型路径
+    audio_data, sr = librosa.load("test.wav", sr=16000)
     result = asr.recognize(audio_data)
     print(f"result: {result}")
