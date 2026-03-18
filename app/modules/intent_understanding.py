@@ -19,7 +19,7 @@ class IntentUnderstanding:
     def __init__(
         self,
         api_key: str = "EMPTY",
-        base_url: str = "http://192.168.111.3:8093/v1",
+        base_url: str = "http://YOUR_LLM_SERVER_IP:8093/v1",
         system_prompt_path: str = "conf/system_prompt_intent.txt"
     ):
         """

@@ -422,7 +422,7 @@ ASR_LANGUAGE=zh
 
 # LLM 配置
 LLM_API_KEY=EMPTY
-LLM_BASE_URL=http://192.168.111.3:8093/v1
+LLM_BASE_URL=http://YOUR_LLM_SERVER_IP:8093/v1
 
 # 意图理解配置
 INTENT_SYSTEM_PROMPT_PATH=conf/system_prompt_intent.txt

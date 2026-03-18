@@ -16,12 +16,12 @@ AUDIO_CHANNELS=1
 AUDIO_SAMPLE_WIDTH=2
 
 # ASR配置（Whisper）
-ASR_MODEL=/data/work/public/models/whisper-large-v3  # Whisper 模型路径
+ASR_MODEL=/path/to/your/whisper-model  # Whisper 模型路径
 ASR_LANGUAGE=en  # 识别语言（英语）
 
 # LLM配置
 LLM_API_KEY=EMPTY
-LLM_BASE_URL=http://192.168.111.3:8093/v1
+LLM_BASE_URL=http://YOUR_LLM_SERVER_IP:8093/v1
 
 # 意图理解配置
 INTENT_SYSTEM_PROMPT_PATH=conf/system_prompt_intent.txt

@@ -32,7 +32,7 @@ class RAG:
         similarity_threshold: float = 0.2,
         use_memory: bool = False,
         llm_api_key: str = "EMPTY",
-        llm_base_url: str = "http://192.168.111.3:8093/v1"
+        llm_base_url: str = "http://YOUR_LLM_SERVER_IP:8093/v1"
     ):
         """
         初始化RAG检索器

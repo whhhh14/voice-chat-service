@@ -49,7 +49,7 @@ class LLM:
 if __name__ == "__main__":
     llm = LLM(
         api_key="EMPTY",
-        base_url="http://192.168.111.3:8093/v1",
+        base_url="http://YOUR_LLM_SERVER_IP:8093/v1",
         system_promt_path="conf/system_prompt_intent.txt"
     )
     llm.generate("tell me a joke")

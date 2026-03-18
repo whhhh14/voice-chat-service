@@ -37,7 +37,7 @@ for directory in [INPUT_AUDIO_DIR, OUTPUT_AUDIO_DIR, RESULTS_DIR, GRADIO_TEMP_DI
     directory.mkdir(parents=True, exist_ok=True)
 
 # API 配置
-API_BASE_URL = "http://192.168.111.9:8900"
+API_BASE_URL = "http://YOUR_SERVER_IP:8900"
 
 
 def calculate_audio_hash(audio_data: bytes) -> str:
@@ -128,7 +128,7 @@ def save_result_json(result_data: Dict, audio_hash: str) -> str:
 class VoiceChatClient:
     """语音聊天客户端"""
 
-    def __init__(self, ws_url: str = "ws://192.168.111.9:8900/ws"):
+    def __init__(self, ws_url: str = "ws://YOUR_SERVER_IP:8900/ws"):
         self.ws_url = ws_url
 
     async def send_audio(self, audio_data: bytes, context: dict = None) -> Optional[dict]:
@@ -693,7 +693,7 @@ def create_interface():
                         # ws_url 输入
                         ws_url_input = gr.Textbox(
                             label="WebSocket 服务地址",
-                            value="ws://192.168.111.9:8900/ws",
+                            value="ws://YOUR_SERVER_IP:8900/ws",
                             placeholder="ws://your.server:8900/ws",
                             lines=1,
                         )
@@ -749,7 +749,7 @@ def create_interface():
                     ## 使用步骤
 
             1. **输入 WebSocket 服务地址**：
-               - 输入 WebSocket 服务地址，默认值为 `ws://192.168.111.9:8900/ws`
+               - 输入 WebSocket 服务地址，默认值为 `ws://YOUR_SERVER_IP:8900/ws`
 
             2. **选择输入方式**：
                - 点击麦克风图标录制音频

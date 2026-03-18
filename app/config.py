@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     
     # LLM配置
     llm_api_key: str = "EMPTY"
-    llm_base_url: str = "http://192.168.111.3:8093/v1"
+    llm_base_url: str = "http://YOUR_LLM_SERVER_IP:8093/v1"
     
     # 意图理解配置
     intent_system_prompt_path: str = "conf/system_prompt_intent.txt"
